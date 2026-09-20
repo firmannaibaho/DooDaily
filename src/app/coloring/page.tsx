@@ -1,13 +1,27 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/Button";
 import { FloatingElement } from "@/components/stickers/FloatingElement";
-import { Sparkle } from "@/components/stickers/Decorations";
-import { Undo2, Redo2, Eraser, Trash2, Download, Pen } from "lucide-react";
+import { Sparkle, Star } from "@/components/stickers/Decorations";
+import { Undo2, Redo2, Eraser, Trash2, Download, Pen, ShoppingBag, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCart } from "@/lib/cart-context";
 
-import type { Metadata } from "next";
+// Lazy load the 3D viewer
+const KeychainViewer3D = dynamic(
+  () => import("@/components/3d/KeychainViewer3D"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full min-h-[350px] flex flex-col items-center justify-center gap-4 bg-[#FFFBF2] rounded-[3rem]">
+        <Loader2 className="w-12 h-12 text-brand-blue animate-spin" />
+        <p className="text-brand-blue font-bold text-sm">Loading 3D Keychain Preview...</p>
+      </div>
+    ),
+  }
+);
 
 const COLORS = [
   "#1c1917",
@@ -65,23 +79,31 @@ export default function ColoringStudioPage() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [history, setHistory] = useState<ImageData[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [textureUrl, setTextureUrl] = useState<string>("");
 
-  // Draw the outline on mount
+  const { addItem } = useCart();
+
+  // Helper to update 3D texture state
+  const update3DTexture = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const url = canvas.toDataURL("image/png");
+    setTextureUrl(url);
+  }, []);
+
+  // Draw initial outline on mount
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas resolution
     canvas.width = 400;
     canvas.height = 420;
 
-    // Fill background
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw the cat outline
     ctx.strokeStyle = "#1c1917";
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
@@ -92,11 +114,15 @@ export default function ColoringStudioPage() {
       ctx.stroke(path);
     });
 
-    // Save initial state
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     setHistory([imageData]);
     setHistoryIndex(0);
-  }, []);
+
+    // Initial 3D texture push
+    setTimeout(() => {
+      update3DTexture();
+    }, 100);
+  }, [update3DTexture]);
 
   const saveState = useCallback(() => {
     const canvas = canvasRef.current;
@@ -111,7 +137,10 @@ export default function ColoringStudioPage() {
       return newHistory;
     });
     setHistoryIndex((prev) => prev + 1);
-  }, [historyIndex]);
+
+    // Push to 3D texture
+    update3DTexture();
+  }, [historyIndex, update3DTexture]);
 
   const undo = () => {
     if (historyIndex <= 0) return;
@@ -123,6 +152,7 @@ export default function ColoringStudioPage() {
     const newIndex = historyIndex - 1;
     ctx.putImageData(history[newIndex], 0, 0);
     setHistoryIndex(newIndex);
+    update3DTexture();
   };
 
   const redo = () => {
@@ -135,6 +165,7 @@ export default function ColoringStudioPage() {
     const newIndex = historyIndex + 1;
     ctx.putImageData(history[newIndex], 0, 0);
     setHistoryIndex(newIndex);
+    update3DTexture();
   };
 
   const clearCanvas = () => {
@@ -143,7 +174,6 @@ export default function ColoringStudioPage() {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Re-draw the base outline
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = "#1c1917";
@@ -161,9 +191,19 @@ export default function ColoringStudioPage() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const link = document.createElement("a");
-    link.download = "doodaily-coloring.png";
+    link.download = "doodaily-artwork.png";
     link.href = canvas.toDataURL();
     link.click();
+  };
+
+  const handleAddToCart = () => {
+    addItem({
+      productId: 5000 + Math.floor(Math.random() * 4000),
+      name: "Custom Hand-Painted 3D Keychain",
+      price: 60000,
+      image: textureUrl || "/logo.jpg",
+      customizations: ["Design: Custom Hand-Coloring Studio Artwork"],
+    });
   };
 
   const getCanvasCoords = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
@@ -223,7 +263,6 @@ export default function ColoringStudioPage() {
   const stopDrawing = () => {
     if (isDrawing) {
       setIsDrawing(false);
-      // Restore composite operation after eraser
       const canvas = canvasRef.current;
       if (canvas) {
         const ctx = canvas.getContext("2d");
@@ -235,143 +274,201 @@ export default function ColoringStudioPage() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-7xl min-h-[85vh] flex flex-col">
+      {/* Header */}
       <div className="text-center mb-8 relative">
-        <h1 className="font-display text-4xl md:text-5xl text-brand-blue mb-2">
-          Coloring Studio
+        <h1 className="font-display text-4xl md:text-5xl text-brand-blue mb-2 flex items-center justify-center gap-3">
+          Coloring Studio &amp; 3D Maker
+          <Sparkles className="w-8 h-8 text-brand-orange animate-spin" />
         </h1>
-        <p className="text-foreground/70 font-medium">
-          Color a little. Create a lot.
+        <p className="text-foreground/70 font-medium max-w-2xl mx-auto">
+          Warnai karakter kamu di 2D Canvas sebelah kiri, dan lihat karya kamu langsung **ditempel otomatis pada Keychain 3D** di sebelah kanan! ✨
         </p>
         <FloatingElement className="-top-4 right-1/4 hidden md:block">
           <Sparkle className="text-brand-orange w-8 h-8" />
         </FloatingElement>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 flex-grow">
-        {/* Tools Panel */}
-        <div className="w-full lg:w-24 flex lg:flex-col gap-4 items-center bg-white rounded-full lg:rounded-[3rem] p-4 border-2 border-brand-blue-light shadow-[4px_4px_0px_0px_rgba(0,0,0,0.08)] overflow-x-auto lg:overflow-visible">
-          <button
-            onClick={() => setIsEraser(false)}
-            className={cn(
-              "w-12 h-12 rounded-full flex items-center justify-center transition-colors shrink-0",
-              !isEraser
-                ? "bg-brand-blue-light text-brand-blue"
-                : "text-foreground/50 hover:bg-gray-100"
-            )}
-            title="Brush"
-          >
-            <Pen className="w-6 h-6" />
-          </button>
-
-          <button
-            onClick={() => setIsEraser(true)}
-            className={cn(
-              "w-12 h-12 rounded-full flex items-center justify-center transition-colors shrink-0",
-              isEraser
-                ? "bg-brand-orange-light text-brand-orange"
-                : "text-foreground/50 hover:bg-gray-100"
-            )}
-            title="Eraser"
-          >
-            <Eraser className="w-6 h-6" />
-          </button>
-
-          <div className="w-px h-8 lg:w-8 lg:h-px bg-gray-200 shrink-0 my-1 lg:my-2"></div>
-
-          <button
-            onClick={undo}
-            disabled={historyIndex <= 0}
-            className="w-12 h-12 rounded-full flex items-center justify-center text-foreground/50 hover:bg-gray-100 transition-colors shrink-0 disabled:opacity-30"
-            title="Undo"
-          >
-            <Undo2 className="w-6 h-6" />
-          </button>
-          <button
-            onClick={redo}
-            disabled={historyIndex >= history.length - 1}
-            className="w-12 h-12 rounded-full flex items-center justify-center text-foreground/50 hover:bg-gray-100 transition-colors shrink-0 disabled:opacity-30"
-            title="Redo"
-          >
-            <Redo2 className="w-6 h-6" />
-          </button>
-          <button
-            onClick={clearCanvas}
-            className="w-12 h-12 rounded-full flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-500 transition-colors shrink-0"
-            title="Clear All"
-          >
-            <Trash2 className="w-6 h-6" />
-          </button>
-
-          <div className="mt-auto lg:mb-4 lg:w-full flex lg:justify-center shrink-0 ml-4 lg:ml-0">
-            <button
-              onClick={downloadCanvas}
-              className="w-12 h-12 rounded-full bg-brand-blue text-white flex items-center justify-center hover:bg-[#3A649E] transition-colors shadow-sm"
-              title="Download"
-            >
-              <Download className="w-5 h-5" />
-            </button>
+      {/* Main Grid Layout: Left Canvas | Right 3D Keychain */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        {/* ================= LEFT: 2D COLORING CANVAS ================= */}
+        <div className="flex flex-col gap-4">
+          <div className="bg-white rounded-3xl p-4 border-2 border-brand-blue-light shadow-sm flex items-center justify-between">
+            <h2 className="font-display text-xl text-brand-blue flex items-center gap-2">
+              <Pen className="w-5 h-5 text-brand-orange" /> 1. Color Your Doodle
+            </h2>
+            <span className="text-xs font-bold bg-brand-orange-light text-brand-orange px-3 py-1 rounded-full">
+              2D Studio
+            </span>
           </div>
-        </div>
 
-        {/* Canvas Area */}
-        <div className="flex-grow bg-[#FFFBF2] rounded-[3rem] border-4 border-brand-blue-light relative overflow-hidden flex flex-col">
-          {/* The Canvas itself */}
-          <div className="flex-grow flex items-center justify-center p-4 md:p-8 relative z-10">
-            <div className="bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
-              <canvas
-                ref={canvasRef}
-                className="w-[300px] h-[315px] md:w-[400px] md:h-[420px] cursor-crosshair touch-none"
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={startDrawing}
-                onTouchMove={draw}
-                onTouchEnd={stopDrawing}
-              />
+          <div className="bg-[#FFFBF2] rounded-[2.5rem] border-4 border-brand-blue-light p-4 md:p-6 flex flex-col gap-4 relative">
+            {/* Canvas Container */}
+            <div className="flex justify-center items-center relative">
+              <div className="bg-white rounded-3xl shadow-md border-2 border-brand-blue-light/50 overflow-hidden">
+                <canvas
+                  ref={canvasRef}
+                  className="w-[300px] h-[315px] md:w-[360px] md:h-[378px] cursor-crosshair touch-none"
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                />
+              </div>
             </div>
-          </div>
 
-          {/* Color Palette */}
-          <div className="bg-white/80 backdrop-blur-md p-4 md:p-6 border-t-2 border-brand-blue-light flex flex-col md:flex-row items-center justify-between gap-4 md:gap-6 relative z-20">
-            <div className="flex flex-col gap-2 w-full md:w-auto">
-              <span className="text-xs font-bold text-foreground/50 uppercase tracking-wider ml-2">
-                Size: {brushSize}px
-              </span>
+            {/* Tools Bar & Undo/Redo */}
+            <div className="flex items-center justify-between bg-white rounded-2xl p-3 border-2 border-brand-blue-light">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsEraser(false)}
+                  className={cn(
+                    "p-2.5 rounded-xl flex items-center gap-1 font-bold text-xs transition-colors",
+                    !isEraser
+                      ? "bg-brand-blue text-white"
+                      : "text-foreground/60 hover:bg-gray-100"
+                  )}
+                >
+                  <Pen className="w-4 h-4" /> Brush
+                </button>
+                <button
+                  onClick={() => setIsEraser(true)}
+                  className={cn(
+                    "p-2.5 rounded-xl flex items-center gap-1 font-bold text-xs transition-colors",
+                    isEraser
+                      ? "bg-brand-orange text-white"
+                      : "text-foreground/60 hover:bg-gray-100"
+                  )}
+                >
+                  <Eraser className="w-4 h-4" /> Eraser
+                </button>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={undo}
+                  disabled={historyIndex <= 0}
+                  className="p-2 rounded-xl text-foreground/60 hover:bg-gray-100 disabled:opacity-30"
+                  title="Undo"
+                >
+                  <Undo2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={redo}
+                  disabled={historyIndex >= history.length - 1}
+                  className="p-2 rounded-xl text-foreground/60 hover:bg-gray-100 disabled:opacity-30"
+                  title="Redo"
+                >
+                  <Redo2 className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={clearCanvas}
+                  className="p-2 rounded-xl text-red-400 hover:bg-red-50 hover:text-red-500"
+                  title="Clear All"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Brush Size & Palette */}
+            <div className="space-y-3 bg-white rounded-2xl p-4 border-2 border-brand-blue-light">
+              <div className="flex items-center justify-between text-xs font-bold text-foreground/70">
+                <span>Brush Size</span>
+                <span>{brushSize}px</span>
+              </div>
               <input
                 type="range"
                 min="2"
                 max="30"
                 value={brushSize}
                 onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                className="w-full md:w-48 accent-brand-blue"
+                className="w-full accent-brand-blue"
               />
+
+              <div className="grid grid-cols-6 gap-2 pt-2 border-t border-gray-100">
+                {COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      setActiveColor(c);
+                      setIsEraser(false);
+                    }}
+                    className={cn(
+                      "w-full aspect-square rounded-full border-2 transition-transform",
+                      activeColor === c && !isEraser
+                        ? "border-foreground scale-110 shadow-sm"
+                        : "border-transparent hover:scale-110"
+                    )}
+                    style={{
+                      backgroundColor: c,
+                      boxShadow: c === "#ffffff" ? "inset 0 0 0 1px #e5e7eb" : undefined,
+                    }}
+                  />
+                ))}
+              </div>
             </div>
 
-            <div className="flex flex-wrap justify-center gap-2 md:gap-3">
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => {
-                    setActiveColor(c);
-                    setIsEraser(false);
-                  }}
-                  className={cn(
-                    "w-9 h-9 md:w-11 md:h-11 rounded-full border-4 transition-transform",
-                    activeColor === c && !isEraser
-                      ? "border-gray-400 scale-110 shadow-sm"
-                      : "border-transparent hover:scale-110"
-                  )}
-                  style={{
-                    backgroundColor: c,
-                    boxShadow:
-                      c === "#ffffff"
-                        ? "inset 0 0 0 1px #e5e7eb"
-                        : undefined,
-                  }}
-                  aria-label={`Color ${c}`}
+            <Button
+              onClick={downloadCanvas}
+              variant="outline"
+              className="w-full rounded-2xl gap-2 font-bold"
+            >
+              <Download className="w-4 h-4" /> Download 2D Artwork (PNG)
+            </Button>
+          </div>
+        </div>
+
+        {/* ================= RIGHT: REALTIME 3D KEYCHAIN PREVIEW ================= */}
+        <div className="flex flex-col gap-4">
+          <div className="bg-white rounded-3xl p-4 border-2 border-brand-blue-light shadow-sm flex items-center justify-between">
+            <h2 className="font-display text-xl text-brand-blue flex items-center gap-2">
+              <Sparkle className="w-5 h-5 text-brand-orange" /> 2. Live 3D Keychain Result
+            </h2>
+            <span className="text-xs font-bold bg-brand-blue-light text-brand-blue px-3 py-1 rounded-full">
+              3D Realtime
+            </span>
+          </div>
+
+          <div className="bg-white rounded-[2.5rem] border-4 border-brand-blue-light h-[520px] relative overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,0.08)] flex flex-col justify-between p-6">
+            {/* Dotted bg */}
+            <div className="absolute inset-0 bg-[radial-gradient(#e0eaf5_2px,transparent_2px)] [background-size:24px_24px] opacity-40 pointer-events-none"></div>
+
+            {/* 3D Viewer */}
+            <div className="flex-grow relative z-10">
+              <Suspense
+                fallback={
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Loader2 className="w-12 h-12 text-brand-blue animate-spin" />
+                  </div>
+                }
+              >
+                <KeychainViewer3D
+                  color="#4776B9"
+                  name=""
+                  accessoryEmoji="⭐"
+                  character="cat"
+                  textureUrl={textureUrl}
                 />
-              ))}
+              </Suspense>
+            </div>
+
+            {/* Order Action Card */}
+            <div className="relative z-20 bg-[#FFFBF2] rounded-3xl p-4 border-2 border-brand-blue-light flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
+              <div>
+                <p className="text-xs font-bold text-foreground/50 uppercase">Order Your Creation</p>
+                <p className="font-display text-2xl text-brand-orange">Rp 60.000</p>
+                <p className="text-xs text-foreground/70 font-medium">Custom printed acrylic keychain</p>
+              </div>
+              <Button
+                onClick={handleAddToCart}
+                size="lg"
+                className="w-full sm:w-auto rounded-full gap-2 px-6 h-14 text-base shadow-[0_4px_0_0_#2B4C7E]"
+              >
+                <ShoppingBag className="w-5 h-5" /> Add to Cart
+              </Button>
             </div>
           </div>
         </div>
