@@ -80,6 +80,7 @@ export default function ColoringStudioPage() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [history, setHistory] = useState<ImageData[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [shape, setShape] = useState<"circle" | "rounded">("circle");
   const [textureUrl, setTextureUrl] = useState<string>("");
 
   const { addItem } = useCart();
@@ -489,9 +490,31 @@ export default function ColoringStudioPage() {
             <h2 className="font-display text-xl text-brand-blue flex items-center gap-2">
               <Sparkle className="w-5 h-5 text-brand-orange" /> 2. Live 3D Keychain Result
             </h2>
-            <span className="text-xs font-bold bg-brand-blue-light text-brand-blue px-3 py-1 rounded-full">
-              3D Realtime
-            </span>
+            {/* Shape Selectors */}
+            <div className="flex items-center gap-1 bg-[#FFFBF2] p-1 rounded-full border border-brand-blue-light">
+              <button
+                onClick={() => setShape("circle")}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1",
+                  shape === "circle"
+                    ? "bg-brand-blue text-white shadow-sm"
+                    : "text-foreground/60 hover:text-brand-blue"
+                )}
+              >
+                🔴 Bulat
+              </button>
+              <button
+                onClick={() => setShape("rounded")}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1",
+                  shape === "rounded"
+                    ? "bg-brand-blue text-white shadow-sm"
+                    : "text-foreground/60 hover:text-brand-blue"
+                )}
+              >
+                🔲 Persegi
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-[2.5rem] border-4 border-brand-blue-light h-[520px] relative overflow-hidden shadow-[4px_4px_0px_0px_rgba(0,0,0,0.08)] flex flex-col justify-between p-6">
@@ -513,6 +536,7 @@ export default function ColoringStudioPage() {
                   accessoryEmoji="⭐"
                   character="cat"
                   textureUrl={textureUrl}
+                  shape={shape}
                 />
               </Suspense>
             </div>

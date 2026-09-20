@@ -11,8 +11,20 @@ import {
 } from "@react-three/drei";
 import * as THREE from "three";
 
-// ─── Custom Canvas Texture Face Component ──────────────────────────
-function CanvasTextureFace({ textureUrl }: { textureUrl: string }) {
+export type KeychainShape = "circle" | "rounded";
+
+// ─── Double-Sided Custom Canvas Texture Face Component ─────────────────────
+function CustomArtworkFace({
+  textureUrl,
+  shape,
+  name,
+  color,
+}: {
+  textureUrl: string;
+  shape: KeychainShape;
+  name?: string;
+  color: string;
+}) {
   const texture = useMemo(() => {
     if (!textureUrl) return null;
     const loader = new THREE.TextureLoader();
@@ -25,126 +37,121 @@ function CanvasTextureFace({ textureUrl }: { textureUrl: string }) {
   if (!texture) return null;
 
   return (
-    <mesh position={[0, 0.1, 0.26]}>
-      <planeGeometry args={[1.25, 1.4]} />
-      <meshStandardMaterial map={texture} transparent side={THREE.DoubleSide} roughness={0.2} />
-    </mesh>
+    <group>
+      {/* FRONT SIDE ARTWORK */}
+      <mesh position={[0, 0.1, 0.22]}>
+        {shape === "circle" ? (
+          <circleGeometry args={[0.78, 32]} />
+        ) : (
+          <planeGeometry args={[1.22, 1.45]} />
+        )}
+        <meshStandardMaterial
+          map={texture}
+          transparent
+          side={THREE.FrontSide}
+          roughness={0.15}
+        />
+      </mesh>
+
+      {/* BACK SIDE ARTWORK (Mirrored/Backing with Brand & Name) */}
+      <group position={[0, 0.1, -0.22]} rotation={[0, Math.PI, 0]}>
+        <mesh>
+          {shape === "circle" ? (
+            <circleGeometry args={[0.78, 32]} />
+          ) : (
+            <planeGeometry args={[1.22, 1.45]} />
+          )}
+          <meshStandardMaterial
+            map={texture}
+            transparent
+            side={THREE.FrontSide}
+            roughness={0.2}
+          />
+        </mesh>
+        
+        {/* Backside Branding Stamp */}
+        <Text
+          position={[0, shape === "circle" ? -0.45 : -0.55, 0.01]}
+          fontSize={0.09}
+          color="#2B4C7E"
+          anchorY="middle"
+          fontWeight="bold"
+        >
+          {name ? `© Doodaily • ${name}` : "✨ Doodaily Original Art ✨"}
+        </Text>
+      </group>
+    </group>
   );
 }
 
 // ─── Default Cat Face (drawn with basic shapes) ─────────────────────
-function CatFace({ color }: { color: string }) {
+function CatFace({ color, name }: { color: string; name?: string }) {
   const faceColor = new THREE.Color(color).lerp(new THREE.Color("#ffffff"), 0.6);
 
   return (
-    <group position={[0, 0.15, 0.26]}>
-      {/* Face base */}
-      <mesh>
-        <circleGeometry args={[0.55, 32]} />
-        <meshStandardMaterial color={faceColor} side={THREE.DoubleSide} />
-      </mesh>
+    <group>
+      {/* FRONT SIDE CAT FACE */}
+      <group position={[0, 0.15, 0.22]}>
+        {/* Face base */}
+        <mesh>
+          <circleGeometry args={[0.55, 32]} />
+          <meshStandardMaterial color={faceColor} side={THREE.FrontSide} />
+        </mesh>
 
-      {/* Left ear */}
-      <mesh position={[-0.38, 0.48, 0]} rotation={[0, 0, 0.3]}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            args={[new Float32Array([0, 0, 0, 0.22, 0.35, 0, -0.18, 0.25, 0]), 3]}
-          />
-        </bufferGeometry>
-        <meshStandardMaterial color={faceColor} side={THREE.DoubleSide} />
-      </mesh>
+        {/* Left ear */}
+        <mesh position={[-0.38, 0.48, 0]} rotation={[0, 0, 0.3]}>
+          <bufferGeometry>
+            <bufferAttribute
+              attach="attributes-position"
+              args={[new Float32Array([0, 0, 0, 0.22, 0.35, 0, -0.18, 0.25, 0]), 3]}
+            />
+          </bufferGeometry>
+          <meshStandardMaterial color={faceColor} side={THREE.FrontSide} />
+        </mesh>
 
-      {/* Right ear */}
-      <mesh position={[0.38, 0.48, 0]} rotation={[0, 0, -0.3]}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            args={[new Float32Array([0, 0, 0, 0.18, 0.25, 0, -0.22, 0.35, 0]), 3]}
-          />
-        </bufferGeometry>
-        <meshStandardMaterial color={faceColor} side={THREE.DoubleSide} />
-      </mesh>
+        {/* Right ear */}
+        <mesh position={[0.38, 0.48, 0]} rotation={[0, 0, -0.3]}>
+          <bufferGeometry>
+            <bufferAttribute
+              attach="attributes-position"
+              args={[new Float32Array([0, 0, 0, 0.18, 0.25, 0, -0.22, 0.35, 0]), 3]}
+            />
+          </bufferGeometry>
+          <meshStandardMaterial color={faceColor} side={THREE.FrontSide} />
+        </mesh>
 
-      {/* Inner ear stripes (orange) */}
-      <mesh position={[-0.28, 0.6, 0.01]}>
-        <circleGeometry args={[0.04, 8]} />
-        <meshStandardMaterial color="#F5A03A" />
-      </mesh>
-      <mesh position={[-0.22, 0.62, 0.01]}>
-        <circleGeometry args={[0.04, 8]} />
-        <meshStandardMaterial color="#F5A03A" />
-      </mesh>
-      <mesh position={[-0.16, 0.6, 0.01]}>
-        <circleGeometry args={[0.04, 8]} />
-        <meshStandardMaterial color="#F5A03A" />
-      </mesh>
+        {/* Eyes & Nose */}
+        <mesh position={[-0.18, 0.1, 0.01]}>
+          <circleGeometry args={[0.08, 16]} />
+          <meshStandardMaterial color="#4776B9" />
+        </mesh>
+        <mesh position={[0.18, 0.1, 0.01]}>
+          <circleGeometry args={[0.08, 16]} />
+          <meshStandardMaterial color="#4776B9" />
+        </mesh>
+        <mesh position={[0, -0.05, 0.01]}>
+          <circleGeometry args={[0.04, 3]} />
+          <meshStandardMaterial color="#4776B9" />
+        </mesh>
+      </group>
 
-      {/* Left eye */}
-      <mesh position={[-0.18, 0.1, 0.01]}>
-        <circleGeometry args={[0.08, 16]} />
-        <meshStandardMaterial color="#4776B9" />
-      </mesh>
-      {/* Left eye highlight */}
-      <mesh position={[-0.15, 0.13, 0.02]}>
-        <circleGeometry args={[0.03, 8]} />
-        <meshStandardMaterial color="#ffffff" />
-      </mesh>
+      {/* BACK SIDE CAT FACE (Backing design) */}
+      <group position={[0, 0.15, -0.22]} rotation={[0, Math.PI, 0]}>
+        <mesh>
+          <circleGeometry args={[0.55, 32]} />
+          <meshStandardMaterial color={faceColor} side={THREE.FrontSide} />
+        </mesh>
 
-      {/* Right eye */}
-      <mesh position={[0.18, 0.1, 0.01]}>
-        <circleGeometry args={[0.08, 16]} />
-        <meshStandardMaterial color="#4776B9" />
-      </mesh>
-      {/* Right eye highlight */}
-      <mesh position={[0.21, 0.13, 0.02]}>
-        <circleGeometry args={[0.03, 8]} />
-        <meshStandardMaterial color="#ffffff" />
-      </mesh>
-
-      {/* Nose */}
-      <mesh position={[0, -0.05, 0.01]}>
-        <circleGeometry args={[0.04, 3]} />
-        <meshStandardMaterial color="#4776B9" />
-      </mesh>
-
-      {/* Mouth */}
-      <mesh position={[-0.06, -0.12, 0.01]} rotation={[0, 0, 0.4]}>
-        <capsuleGeometry args={[0.012, 0.1, 4, 8]} />
-        <meshStandardMaterial color="#4776B9" />
-      </mesh>
-      <mesh position={[0.06, -0.12, 0.01]} rotation={[0, 0, -0.4]}>
-        <capsuleGeometry args={[0.012, 0.1, 4, 8]} />
-        <meshStandardMaterial color="#4776B9" />
-      </mesh>
-
-      {/* Whiskers */}
-      <mesh position={[-0.45, 0.05, 0.01]} rotation={[0, 0, 0.1]}>
-        <capsuleGeometry args={[0.008, 0.25, 4, 8]} />
-        <meshStandardMaterial color="#4776B9" />
-      </mesh>
-      <mesh position={[-0.45, -0.05, 0.01]} rotation={[0, 0, -0.05]}>
-        <capsuleGeometry args={[0.008, 0.25, 4, 8]} />
-        <meshStandardMaterial color="#4776B9" />
-      </mesh>
-      <mesh position={[0.45, 0.05, 0.01]} rotation={[0, 0, -0.1]}>
-        <capsuleGeometry args={[0.008, 0.25, 4, 8]} />
-        <meshStandardMaterial color="#4776B9" />
-      </mesh>
-      <mesh position={[0.45, -0.05, 0.01]} rotation={[0, 0, 0.05]}>
-        <capsuleGeometry args={[0.008, 0.25, 4, 8]} />
-        <meshStandardMaterial color="#4776B9" />
-      </mesh>
-
-      {/* Paws */}
-      <mesh position={[-0.25, -0.5, 0.01]}>
-        <circleGeometry args={[0.12, 16, 0, Math.PI]} />
-        <meshStandardMaterial color={faceColor} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[0.25, -0.5, 0.01]}>
-        <circleGeometry args={[0.12, 16, 0, Math.PI]} />
-        <meshStandardMaterial color={faceColor} side={THREE.DoubleSide} />
-      </mesh>
+        <Text
+          position={[0, -0.7, 0.01]}
+          fontSize={0.12}
+          color="#4776B9"
+          anchorY="middle"
+          fontWeight="bold"
+        >
+          {name ? `© ${name} • Doodaily` : "✨ Doodaily Art ✨"}
+        </Text>
+      </group>
     </group>
   );
 }
@@ -155,91 +162,103 @@ function KeychainBody({
   name,
   accessoryEmoji,
   textureUrl,
+  shape = "rounded",
 }: {
   color: string;
   name: string;
   accessoryEmoji: string;
   textureUrl?: string;
+  shape?: KeychainShape;
 }) {
   const groupRef = useRef<THREE.Group>(null);
 
-  // Slow auto-rotate
+  // Slow 360 degree rotation showcase
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y =
-        Math.sin(state.clock.elapsedTime * 0.3) * 0.15;
+      groupRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.4;
     }
   });
 
+  const isCircle = shape === "circle";
+
   return (
     <group ref={groupRef}>
-      {/* ── Keyring ── */}
-      <mesh position={[0, 1.65, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      {/* ── Keyring (top ring) ── */}
+      <mesh position={[0, isCircle ? 1.45 : 1.65, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <torusGeometry args={[0.18, 0.04, 16, 32]} />
-        <meshStandardMaterial
-          color="#C0C0C0"
-          metalness={0.9}
-          roughness={0.2}
-        />
+        <meshStandardMaterial color="#C0C0C0" metalness={0.9} roughness={0.2} />
       </mesh>
 
       {/* ── Connector ── */}
-      <mesh position={[0, 1.38, 0]}>
+      <mesh position={[0, isCircle ? 1.22 : 1.38, 0]}>
         <cylinderGeometry args={[0.03, 0.03, 0.2, 8]} />
-        <meshStandardMaterial
-          color="#C0C0C0"
-          metalness={0.9}
-          roughness={0.2}
-        />
+        <meshStandardMaterial color="#C0C0C0" metalness={0.9} roughness={0.2} />
       </mesh>
 
-      {/* ── Hole ── */}
-      <mesh position={[0, 1.25, 0]}>
+      {/* ── Hole for ring ── */}
+      <mesh position={[0, isCircle ? 1.1 : 1.25, 0]}>
         <torusGeometry args={[0.06, 0.025, 8, 16]} />
         <meshStandardMaterial color={color} metalness={0.1} roughness={0.4} />
       </mesh>
 
-      {/* ── Main acrylic body ── */}
-      <RoundedBox
-        args={[1.6, 2.0, 0.5]}
-        radius={0.2}
-        smoothness={8}
-        position={[0, 0.1, 0]}
-      >
-        <meshPhysicalMaterial
-          color={color}
-          transparent
-          opacity={0.85}
-          transmission={0.2}
-          roughness={0.15}
-          metalness={0.05}
-          clearcoat={1}
-          clearcoatRoughness={0.1}
-          envMapIntensity={0.5}
-        />
-      </RoundedBox>
-
-      {/* ── White inner panel ── */}
-      <RoundedBox
-        args={[1.35, 1.75, 0.35]}
-        radius={0.15}
-        smoothness={8}
-        position={[0, 0.1, 0]}
-      >
-        <meshStandardMaterial color="#FFFBF2" roughness={0.3} />
-      </RoundedBox>
-
-      {/* ── Front Artwork (Either Custom Canvas Texture or Default Cat Face) ── */}
-      {textureUrl ? (
-        <CanvasTextureFace textureUrl={textureUrl} />
+      {/* ── Main Acrylic Outer Body (Shape Aware) ── */}
+      {isCircle ? (
+        <mesh position={[0, 0.1, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[1.0, 1.0, 0.4, 48]} />
+          <meshPhysicalMaterial
+            color={color}
+            transparent
+            opacity={0.85}
+            transmission={0.2}
+            roughness={0.15}
+            metalness={0.05}
+            clearcoat={1}
+            clearcoatRoughness={0.1}
+          />
+        </mesh>
       ) : (
-        <CatFace color={color} />
+        <RoundedBox args={[1.5, 1.9, 0.4]} radius={0.2} smoothness={8} position={[0, 0.1, 0]}>
+          <meshPhysicalMaterial
+            color={color}
+            transparent
+            opacity={0.85}
+            transmission={0.2}
+            roughness={0.15}
+            metalness={0.05}
+            clearcoat={1}
+            clearcoatRoughness={0.1}
+          />
+        </RoundedBox>
       )}
 
-      {/* ── Custom Name Text (Only if no custom texture or if name specified) ── */}
-      {name && (
+      {/* ── White Inner Panel (Shape Aware) ── */}
+      {isCircle ? (
+        <mesh position={[0, 0.1, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.88, 0.88, 0.32, 48]} />
+          <meshStandardMaterial color="#FFFBF2" roughness={0.3} />
+        </mesh>
+      ) : (
+        <RoundedBox args={[1.3, 1.7, 0.32]} radius={0.15} smoothness={8} position={[0, 0.1, 0]}>
+          <meshStandardMaterial color="#FFFBF2" roughness={0.3} />
+        </RoundedBox>
+      )}
+
+      {/* ── Double-Sided Artwork / Face (Front & Back) ── */}
+      {textureUrl ? (
+        <CustomArtworkFace
+          textureUrl={textureUrl}
+          shape={shape}
+          name={name}
+          color={color}
+        />
+      ) : (
+        <CatFace color={color} name={name} />
+      )}
+
+      {/* ── Front Custom Name Text ── */}
+      {name && !textureUrl && (
         <Text
-          position={[0, -0.65, 0.26]}
+          position={[0, -0.6, 0.22]}
           fontSize={0.18}
           maxWidth={1.2}
           textAlign="center"
@@ -251,10 +270,10 @@ function KeychainBody({
         </Text>
       )}
 
-      {/* ── Accessory charm ── */}
+      {/* ── Accessory Charm ── */}
       {accessoryEmoji && accessoryEmoji !== "🚫" && (
         <Float speed={2} floatIntensity={0.3} rotationIntensity={0.2}>
-          <group position={[0.6, -0.9, 0.15]}>
+          <group position={[isCircle ? 0.8 : 0.65, -0.85, 0.15]}>
             <mesh position={[0, 0.2, 0]}>
               <cylinderGeometry args={[0.015, 0.015, 0.3, 6]} />
               <meshStandardMaterial color="#C0C0C0" metalness={0.8} roughness={0.2} />
@@ -269,16 +288,6 @@ function KeychainBody({
           </group>
         </Float>
       )}
-
-      {/* ── Border outline effect ── */}
-      <RoundedBox
-        args={[1.65, 2.05, 0.52]}
-        radius={0.22}
-        smoothness={8}
-        position={[0, 0.1, 0]}
-      >
-        <meshBasicMaterial color={color} wireframe opacity={0.15} transparent />
-      </RoundedBox>
     </group>
   );
 }
@@ -290,6 +299,7 @@ interface KeychainViewer3DProps {
   accessoryEmoji: string;
   character: string;
   textureUrl?: string;
+  shape?: KeychainShape;
 }
 
 export default function KeychainViewer3D({
@@ -298,6 +308,7 @@ export default function KeychainViewer3D({
   accessoryEmoji,
   character,
   textureUrl,
+  shape = "rounded",
 }: KeychainViewer3DProps) {
   return (
     <div className="w-full h-full min-h-[400px] rounded-[3rem] overflow-hidden relative">
@@ -320,6 +331,7 @@ export default function KeychainViewer3D({
             name={name}
             accessoryEmoji={accessoryEmoji}
             textureUrl={textureUrl}
+            shape={shape}
           />
         </Float>
 
@@ -333,8 +345,8 @@ export default function KeychainViewer3D({
         />
       </Canvas>
 
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full text-xs font-bold text-foreground/50 pointer-events-none select-none">
-        🖱️ Drag to rotate • 3D Realtime Texture
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/70 backdrop-blur-sm px-4 py-1.5 rounded-full text-xs font-bold text-foreground/50 pointer-events-none select-none flex items-center gap-2">
+        <span>🔄 Putar 360° Depan &amp; Belakang</span>
       </div>
     </div>
   );

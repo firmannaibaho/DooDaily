@@ -47,6 +47,7 @@ const ACCESSORIES = [
 ];
 
 export default function CustomizePage() {
+  const [shape, setShape] = useState<"circle" | "rounded">("circle");
   const [character, setCharacter] = useState("cat");
   const [color, setColor] = useState("blue");
   const [accessory, setAccessory] = useState("star");
@@ -114,6 +115,7 @@ export default function CustomizePage() {
               name={name}
               accessoryEmoji={selectedAccessory?.icon || ""}
               character={character}
+              shape={shape}
             />
           </Suspense>
 
@@ -139,7 +141,51 @@ export default function CustomizePage() {
 
         {/* ============ CONTROLS ============ */}
         <div className="flex flex-col gap-8 bg-[#FFFBF2] lg:bg-transparent rounded-3xl p-6 lg:p-0">
-          {/* Step 1: Character */}
+          {/* Step 1: Shape */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <span className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-sm">
+                1
+              </span>
+              <h3 className="font-display text-2xl text-brand-blue">
+                Choose Keychain Shape
+              </h3>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setShape("circle")}
+                className={cn(
+                  "p-4 rounded-2xl border-2 transition-all flex items-center gap-3 bg-white font-bold text-sm",
+                  shape === "circle"
+                    ? "border-brand-orange text-brand-orange shadow-[0_0_0_4px_rgba(245,160,58,0.2)]"
+                    : "border-brand-blue-light text-foreground/70 hover:border-brand-blue"
+                )}
+              >
+                <span className="text-2xl">🔴</span>
+                <div className="text-left">
+                  <p className="font-bold">Circle (Bulat)</p>
+                  <p className="text-xs opacity-60">Classic round acrylic</p>
+                </div>
+              </button>
+              <button
+                onClick={() => setShape("rounded")}
+                className={cn(
+                  "p-4 rounded-2xl border-2 transition-all flex items-center gap-3 bg-white font-bold text-sm",
+                  shape === "rounded"
+                    ? "border-brand-orange text-brand-orange shadow-[0_0_0_4px_rgba(245,160,58,0.2)]"
+                    : "border-brand-blue-light text-foreground/70 hover:border-brand-blue"
+                )}
+              >
+                <span className="text-2xl">🔲</span>
+                <div className="text-left">
+                  <p className="font-bold">Persegi Rounded</p>
+                  <p className="text-xs opacity-60">Rounded rectangle</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          {/* Step 2: Character */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <span className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-sm">
