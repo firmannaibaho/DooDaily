@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/Button";
 import { FloatingElement } from "@/components/stickers/FloatingElement";
 import { Sparkle, Star } from "@/components/stickers/Decorations";
-import { Undo2, Redo2, Eraser, Trash2, Download, Pen, ShoppingBag, Loader2, Sparkles } from "lucide-react";
+import { Undo2, Redo2, Eraser, Trash2, Download, Pen, ShoppingBag, Loader2, Sparkles, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-context";
 
@@ -73,6 +73,7 @@ const CAT_PATHS = [
 
 export default function ColoringStudioPage() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeColor, setActiveColor] = useState(COLORS[2]);
   const [isEraser, setIsEraser] = useState(false);
   const [brushSize, setBrushSize] = useState(8);
@@ -90,6 +91,51 @@ export default function ColoringStudioPage() {
     const url = canvas.toDataURL("image/png");
     setTextureUrl(url);
   }, []);
+
+  // Handle uploaded custom image
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        // Fill background white
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Aspect ratio contain fit
+        const hRatio = canvas.width / img.width;
+        const vRatio = canvas.height / img.height;
+        const ratio = Math.min(hRatio, vRatio);
+        const centerShiftX = (canvas.width - img.width * ratio) / 2;
+        const centerShiftY = (canvas.height - img.height * ratio) / 2;
+
+        ctx.drawImage(
+          img,
+          0,
+          0,
+          img.width,
+          img.height,
+          centerShiftX,
+          centerShiftY,
+          img.width * ratio,
+          img.height * ratio
+        );
+
+        saveState();
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
 
   // Draw initial outline on mount
   useEffect(() => {
@@ -411,13 +457,29 @@ export default function ColoringStudioPage() {
               </div>
             </div>
 
-            <Button
-              onClick={downloadCanvas}
-              variant="outline"
-              className="w-full rounded-2xl gap-2 font-bold"
-            >
-              <Download className="w-4 h-4" /> Download 2D Artwork (PNG)
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                variant="secondary"
+                className="flex-1 rounded-2xl gap-2 font-bold"
+              >
+                <Upload className="w-4 h-4" /> Upload Image
+              </Button>
+              <Button
+                onClick={downloadCanvas}
+                variant="outline"
+                className="flex-1 rounded-2xl gap-2 font-bold"
+              >
+                <Download className="w-4 h-4" /> Download PNG
+              </Button>
+            </div>
           </div>
         </div>
 
