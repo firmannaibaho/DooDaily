@@ -29,9 +29,7 @@ function CatFace({ color }: { color: string }) {
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
-            count={3}
-            array={new Float32Array([0, 0, 0, 0.22, 0.35, 0, -0.18, 0.25, 0])}
-            itemSize={3}
+            args={[new Float32Array([0, 0, 0, 0.22, 0.35, 0, -0.18, 0.25, 0]), 3]}
           />
         </bufferGeometry>
         <meshStandardMaterial color={faceColor} side={THREE.DoubleSide} />
@@ -42,9 +40,7 @@ function CatFace({ color }: { color: string }) {
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
-            count={3}
-            array={new Float32Array([0, 0, 0, 0.18, 0.25, 0, -0.22, 0.35, 0])}
-            itemSize={3}
+            args={[new Float32Array([0, 0, 0, 0.18, 0.25, 0, -0.22, 0.35, 0]), 3]}
           />
         </bufferGeometry>
         <meshStandardMaterial color={faceColor} side={THREE.DoubleSide} />

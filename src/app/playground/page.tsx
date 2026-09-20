@@ -40,7 +40,7 @@ export default function PlaygroundPage() {
 
   const catVariants = {
     idle: { rotate: 0, scale: 1, y: 0 },
-    happy: { rotate: 0, scale: 1.15, y: -20, transition: { type: "spring", stiffness: 300 } },
+    happy: { rotate: 0, scale: 1.15, y: -20, transition: { type: "spring" as const, stiffness: 300 } },
     sleepy: { rotate: 15, scale: 0.9, y: 10, transition: { duration: 0.5 } },
     spin: { rotate: 360, scale: 1, y: -10, transition: { duration: 0.8 } },
   };
