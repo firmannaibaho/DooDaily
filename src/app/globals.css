@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --background: #FFFBF2;
+  --foreground: #1c1917; /* Stone 900 for good readability */
+  --brand-blue: #4776B9;
+  --brand-blue-light: #e0eaf5;
+  --brand-orange: #F5A03A;
+  --brand-orange-light: #fef0d8;
+  
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-full: 9999px;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-blue-light: var(--brand-blue-light);
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-light: var(--brand-orange-light);
+  --font-sans: var(--font-quicksand), sans-serif;
+  --font-display: var(--font-fredoka), sans-serif;
+}
+
+/* Base styles for the playful theme */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  background-image: radial-gradient(var(--brand-blue-light) 1.5px, transparent 1.5px);
+  background-size: 32px 32px;
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: var(--font-display);
+}
+
+/* Custom Utilities for "Sticker" Look */
+@utility sticker-shadow {
+  box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.08);
+}
+@utility sticker-shadow-hover {
+  box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+  transition: all 0.2s ease-in-out;
+}
+
+/* Clean up Next.js default styles */
+* {
+  box-sizing: border-box;
+}
