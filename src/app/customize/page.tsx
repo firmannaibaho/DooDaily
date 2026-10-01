@@ -76,8 +76,8 @@ export default function CustomizePage() {
     addItem({
       productId: 1000 + Math.floor(Math.random() * 9000),
       name: `Custom ${CHARACTERS.find((c) => c.id === character)?.name} Keychain`,
-      price: 55000,
-      image: "/logo.jpg",
+      price: 10000,
+      image: "/catalog/study-work-keychain.jpg",
       customizations,
     });
   };
@@ -318,7 +318,7 @@ export default function CustomizePage() {
                 Total Price
               </span>
               <span className="font-display text-3xl text-brand-blue">
-                Rp 55.000
+                Rp 10.000
               </span>
             </div>
             <Button

@@ -247,7 +247,7 @@ export default function ColoringStudioPage() {
     addItem({
       productId: 5000 + Math.floor(Math.random() * 4000),
       name: "Custom Hand-Painted 3D Keychain",
-      price: 60000,
+      price: 10000,
       image: textureUrl || "/logo.jpg",
       customizations: ["Design: Custom Hand-Coloring Studio Artwork"],
     });
@@ -545,7 +545,7 @@ export default function ColoringStudioPage() {
             <div className="relative z-20 bg-[#FFFBF2] rounded-3xl p-4 border-2 border-brand-blue-light flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
               <div>
                 <p className="text-xs font-bold text-foreground/50 uppercase">Order Your Creation</p>
-                <p className="font-display text-2xl text-brand-orange">Rp 60.000</p>
+                <p className="font-display text-2xl text-brand-orange">Rp 10.000</p>
                 <p className="text-xs text-foreground/70 font-medium">Custom printed acrylic keychain</p>
               </div>
               <Button
