@@ -4,10 +4,11 @@ import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, ShoppingBag } from "lucide-react";
+import { Menu, X, ShoppingBag, User, LogOut, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { useCart } from "@/lib/cart-context";
+import { useSession, signOut } from "next-auth/react";
 
 const navLinks = [
   { name: "Home", href: "/" },
@@ -22,6 +23,10 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const { totalItems } = useCart();
+  const { data: session, status } = useSession();
+
+  const isLoggedIn = status === "authenticated";
+  const isAdmin = isLoggedIn && (session?.user as any)?.role === "admin";
 
   return (
     <header className="sticky top-0 z-50 w-full bg-[#FFFBF2]/90 backdrop-blur-md border-b-2 border-brand-blue-light">
@@ -61,7 +66,7 @@ export function Navbar() {
         </nav>
 
         {/* Actions */}
-        <div className="hidden lg:flex items-center gap-4">
+        <div className="hidden lg:flex items-center gap-3">
           <Link href="/cart">
             <Button variant="ghost" size="icon" className="relative group">
               <ShoppingBag className="w-6 h-6 text-brand-blue group-hover:scale-110 transition-transform" />
@@ -72,9 +77,47 @@ export function Navbar() {
               )}
             </Button>
           </Link>
-          <Link href="/customize">
-            <Button>Create Yours</Button>
-          </Link>
+
+          {isLoggedIn ? (
+            <>
+              {isAdmin && (
+                <Link href="/admin">
+                  <Button variant="ghost" size="sm" className="text-brand-blue font-bold gap-1">
+                    <Shield className="w-4 h-4" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
+              <Link href="/my-orders">
+                <Button variant="ghost" size="sm" className="text-brand-blue font-bold gap-1">
+                  <User className="w-4 h-4" />
+                  {session?.user?.name || "Akun"}
+                </Button>
+              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-500 font-bold gap-1"
+                onClick={() => signOut({ callbackUrl: "/" })}
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button variant="ghost" size="sm" className="text-brand-blue font-bold">
+                  Login
+                </Button>
+              </Link>
+              <Link href="/register">
+                <Button size="sm" className="font-bold">
+                  Daftar
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Toggle */}
@@ -122,10 +165,43 @@ export function Navbar() {
               );
             })}
           </nav>
-          <div className="mt-auto flex flex-col gap-4">
-            <Link href="/customize" onClick={() => setIsOpen(false)}>
-              <Button className="w-full h-14 text-lg">Create Yours</Button>
-            </Link>
+          <div className="mt-auto flex flex-col gap-3">
+            {isLoggedIn ? (
+              <>
+                {isAdmin && (
+                  <Link href="/admin" onClick={() => setIsOpen(false)}>
+                    <Button variant="outline" className="w-full h-12 text-base gap-2">
+                      <Shield className="w-5 h-5" /> Admin Dashboard
+                    </Button>
+                  </Link>
+                )}
+                <Link href="/my-orders" onClick={() => setIsOpen(false)}>
+                  <Button variant="outline" className="w-full h-12 text-base gap-2">
+                    <User className="w-5 h-5" /> Pesanan Saya
+                  </Button>
+                </Link>
+                <Button
+                  variant="outline"
+                  className="w-full h-12 text-base gap-2 text-red-500 border-red-200"
+                  onClick={() => { setIsOpen(false); signOut({ callbackUrl: "/" }); }}
+                >
+                  <LogOut className="w-5 h-5" /> Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setIsOpen(false)}>
+                  <Button variant="outline" className="w-full h-12 text-base">
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/register" onClick={() => setIsOpen(false)}>
+                  <Button className="w-full h-12 text-base">
+                    Daftar
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

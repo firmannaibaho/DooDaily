@@ -4,11 +4,14 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { Trash2, ChevronRight, Lock } from "lucide-react";
+import { Trash2, ChevronRight, Lock, ShieldAlert } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
+import { useSession } from "next-auth/react";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal } = useCart();
+  const { data: session } = useSession();
+  const isAdmin = (session?.user as any)?.role === "admin";
 
   if (items.length === 0) {
     return (
@@ -137,11 +140,27 @@ export default function CartPage() {
             </span>
           </div>
 
-          <Link href="/checkout">
-            <Button size="lg" className="w-full h-16 text-xl rounded-full gap-2">
-              Checkout <ChevronRight className="w-5 h-5" />
-            </Button>
-          </Link>
+          {isAdmin ? (
+            <div className="space-y-3">
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-800 flex items-start gap-2.5">
+                <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  <b>Mode Admin Aktif:</b> Akun admin tidak dapat melakukan transaksi checkout. Silakan login dengan akun pembeli/user.
+                </span>
+              </div>
+              <Link href="/admin">
+                <Button size="lg" className="w-full h-14 text-base rounded-full gap-2">
+                  Kembali ke Dashboard Admin
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <Link href="/checkout">
+              <Button size="lg" className="w-full h-16 text-xl rounded-full gap-2">
+                Checkout <ChevronRight className="w-5 h-5" />
+              </Button>
+            </Link>
+          )}
 
           <div className="mt-6 flex justify-center items-center gap-2 text-xs text-foreground/50 font-medium">
             <Lock className="w-4 h-4" /> Secure Checkout

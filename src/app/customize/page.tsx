@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/Button";
 import { FloatingElement } from "@/components/stickers/FloatingElement";
 import { Sparkle } from "@/components/stickers/Decorations";
-import { RefreshCcw, ShoppingBag, Check, Loader2 } from "lucide-react";
+import { RefreshCcw, ShoppingBag, Check, Loader2, MessageSquareHeart, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-context";
 
@@ -46,12 +46,23 @@ const ACCESSORIES = [
   { id: "flower", name: "Flower Charm", icon: "🌸" },
 ];
 
+const QUICK_PRESETS = [
+  "Nuansa Pastel Aesthetic",
+  "Tema Gliter & Sparkling",
+  "Warna Gradasi Lembut",
+  "Tambahkan Gantungan Lonceng Kecil",
+  "Pakai Font Huruf Sambung Lucu",
+  "Tema Monokrom Minimalis",
+];
+
 export default function CustomizePage() {
   const [shape, setShape] = useState<"circle" | "rounded">("circle");
   const [character, setCharacter] = useState("cat");
   const [color, setColor] = useState("blue");
   const [accessory, setAccessory] = useState("star");
   const [name, setName] = useState("");
+  const [customInstructions, setCustomInstructions] = useState("");
+  const [referenceLink, setReferenceLink] = useState("");
   const { addItem } = useCart();
 
   const selectedColor = COLORS.find((c) => c.id === color);
@@ -59,24 +70,42 @@ export default function CustomizePage() {
   const selectedAccessory = ACCESSORIES.find((a) => a.id === accessory);
 
   const handleReset = () => {
+    setShape("circle");
     setCharacter("cat");
     setColor("blue");
     setAccessory("star");
     setName("");
+    setCustomInstructions("");
+    setReferenceLink("");
+  };
+
+  const handleAddPreset = (preset: string) => {
+    setCustomInstructions((prev) => {
+      if (!prev.trim()) return preset;
+      if (prev.includes(preset)) return prev;
+      return `${prev}, ${preset}`;
+    });
   };
 
   const handleAddToCart = () => {
     const customizations = [
-      `Character: ${CHARACTERS.find((c) => c.id === character)?.name}`,
-      `Color: ${selectedColor?.name}`,
-      `Charm: ${selectedAccessory?.name}`,
+      `Bentuk: ${shape === "circle" ? "Circle (Bulat)" : "Persegi Rounded"}`,
+      `Karakter Dasar: ${CHARACTERS.find((c) => c.id === character)?.name}`,
+      `Warna Dasar: ${selectedColor?.name}`,
+      `Charm Pilihan: ${selectedAccessory?.name}`,
     ];
-    if (name) customizations.push(`Name: ${name}`);
+    if (name.trim()) customizations.push(`Nama/Inisial: ${name.trim()}`);
+    if (customInstructions.trim()) {
+      customizations.push(`Instruksi Khusus (Admin Crafted): ${customInstructions.trim()}`);
+    }
+    if (referenceLink.trim()) {
+      customizations.push(`Link Referensi/Foto: ${referenceLink.trim()}`);
+    }
 
     addItem({
       productId: 1000 + Math.floor(Math.random() * 9000),
-      name: `Custom ${CHARACTERS.find((c) => c.id === character)?.name} Keychain`,
-      price: 10000,
+      name: `Custom Handcrafted Keychain (${CHARACTERS.find((c) => c.id === character)?.name})`,
+      price: 15000,
       image: "/catalog/study-work-keychain.jpg",
       customizations,
     });
@@ -88,11 +117,14 @@ export default function CustomizePage() {
         <FloatingElement className="-top-8 left-1/4 hidden md:block">
           <Sparkle className="text-brand-orange w-10 h-10" />
         </FloatingElement>
-        <h1 className="font-display text-5xl md:text-6xl text-brand-blue mb-4">
-          Make It Yours!
+        <span className="inline-flex items-center gap-2 bg-brand-orange-light text-brand-orange px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-3">
+          <Sparkles className="w-4 h-4" /> Handmade with Love by Admin
+        </span>
+        <h1 className="font-display text-4xl md:text-6xl text-brand-blue mb-4">
+          Request Custom Keychain Kamu!
         </h1>
-        <p className="text-lg text-foreground/70 font-medium">
-          Design your perfect Doodaily keychain in 3D.
+        <p className="text-base md:text-lg text-foreground/70 font-medium max-w-2xl mx-auto">
+          Tentukan referensi awal atau tuliskan ide sesukamu di <b>Instruksi Khusus</b>. Pengrajin Doodaily akan membuatkannya secara personal dan detail untukmu ✨
         </p>
       </div>
 
@@ -127,20 +159,90 @@ export default function CustomizePage() {
             <RefreshCcw className="w-4 h-4" /> Reset
           </button>
 
-          {/* Color indicator */}
+          {/* Live Badge indicator */}
           <div className="absolute top-6 left-6 flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full border border-brand-blue-light z-10">
             <div
               className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
               style={{ backgroundColor: selectedColorHex }}
             ></div>
             <span className="text-xs font-bold text-foreground/60">
-              {selectedColor?.name}
+              Preview Model Dasar
             </span>
           </div>
+
+          {customInstructions && (
+            <div className="absolute bottom-6 left-6 right-6 bg-white/95 backdrop-blur-md p-3.5 rounded-2xl border-2 border-brand-orange-light shadow-sm z-10 text-xs">
+              <span className="font-bold text-brand-orange flex items-center gap-1.5 mb-1">
+                <MessageSquareHeart className="w-3.5 h-3.5" /> Catatan Khusus untuk Admin:
+              </span>
+              <p className="line-clamp-2 text-foreground/80 italic">
+                &ldquo;{customInstructions}&rdquo;
+              </p>
+            </div>
+          )}
         </div>
 
         {/* ============ CONTROLS ============ */}
         <div className="flex flex-col gap-8 bg-[#FFFBF2] lg:bg-transparent rounded-3xl p-6 lg:p-0">
+          
+          {/* FITUR UTAMA: INSTRUKSI KHUSUS UNTUK ADMIN */}
+          <div className="bg-white rounded-3xl p-6 border-4 border-brand-orange shadow-md relative overflow-hidden">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full bg-brand-orange text-white flex items-center justify-center font-bold text-sm shadow">
+                ★
+              </div>
+              <div>
+                <h3 className="font-display text-2xl text-brand-orange">
+                  Instruksi Khusus untuk Admin
+                </h3>
+                <p className="text-xs text-foreground/60 font-medium">
+                  Tuliskan konsep atau detail yang kamu mau, admin yang langsung eksekusi!
+                </p>
+              </div>
+            </div>
+
+            <textarea
+              rows={4}
+              value={customInstructions}
+              onChange={(e) => setCustomInstructions(e.target.value)}
+              placeholder="Contoh: Kak mau warna pastel ungu gradasi ke pink, tambah glitter bintang kecil-kecil, terus di belakangnya kasih inisial 'F & A' yaa..."
+              className="w-full p-4 rounded-2xl border-2 border-brand-orange-light focus:border-brand-orange focus:outline-none focus:ring-4 focus:ring-brand-orange/20 text-sm font-medium transition-all bg-[#FFFBF2] resize-none"
+            />
+
+            {/* Quick preset chips */}
+            <div className="mt-3">
+              <span className="text-xs font-bold text-foreground/60 block mb-2">
+                Ide Cepat (Klik untuk tambah ke catatan):
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_PRESETS.map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => handleAddPreset(preset)}
+                    className="text-xs bg-brand-orange-light/50 hover:bg-brand-orange-light text-brand-orange font-bold px-3 py-1 rounded-full border border-brand-orange/20 transition-all hover:scale-105 active:scale-95"
+                  >
+                    + {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Reference link input */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <label className="text-xs font-bold text-foreground/70 block mb-1.5">
+                Link Referensi Gambar / Drive (Opsional):
+              </label>
+              <input
+                type="url"
+                value={referenceLink}
+                onChange={(e) => setReferenceLink(e.target.value)}
+                placeholder="https://pinterest.com/... atau link Google Drive"
+                className="w-full h-11 px-4 rounded-xl border-2 border-gray-200 focus:border-brand-orange focus:outline-none text-xs font-medium transition-colors bg-white"
+              />
+            </div>
+          </div>
+
           {/* Step 1: Shape */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
@@ -148,7 +250,7 @@ export default function CustomizePage() {
                 1
               </span>
               <h3 className="font-display text-2xl text-brand-blue">
-                Choose Keychain Shape
+                Pilih Bentuk Dasar Akrilik
               </h3>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -189,10 +291,10 @@ export default function CustomizePage() {
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <span className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-sm">
-                1
+                2
               </span>
               <h3 className="font-display text-2xl text-brand-blue">
-                Choose Character
+                Pilih Karakter Referensi
               </h3>
             </div>
             <div className="grid grid-cols-3 gap-4">
@@ -223,14 +325,14 @@ export default function CustomizePage() {
             </div>
           </div>
 
-          {/* Step 2: Color */}
+          {/* Step 3: Color */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-brand-orange text-white flex items-center justify-center font-bold text-sm">
-                2
+              <span className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-sm">
+                3
               </span>
-              <h3 className="font-display text-2xl text-brand-orange">
-                Pick a Color
+              <h3 className="font-display text-2xl text-brand-blue">
+                Warna Dasar Dominan
               </h3>
             </div>
             <div className="flex flex-wrap gap-4">
@@ -258,39 +360,39 @@ export default function CustomizePage() {
             </div>
           </div>
 
-          {/* Step 3: Text */}
+          {/* Step 4: Text Name */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <span className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-sm">
-                3
+                4
               </span>
               <h3 className="font-display text-2xl text-brand-blue">
-                Add Your Name
+                Nama / Inisial di Keychain
               </h3>
             </div>
             <div>
               <input
                 type="text"
-                placeholder="e.g. Doodaily..."
-                maxLength={10}
+                placeholder="Contoh: Doodaily, Firman..."
+                maxLength={15}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full h-14 px-6 rounded-full border-2 border-brand-blue-light focus:border-brand-blue focus:outline-none focus:ring-4 focus:ring-brand-blue/20 text-lg font-bold transition-all bg-white"
               />
               <p className="text-xs text-foreground/50 mt-2 font-medium px-4">
-                Max 10 characters. Watch it appear on the keychain in 3D!
+                Nama ini akan ditulis langsung oleh admin pada gantungan kunci.
               </p>
             </div>
           </div>
 
-          {/* Step 4: Accessory */}
+          {/* Step 5: Charm */}
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-brand-orange text-white flex items-center justify-center font-bold text-sm">
-                4
+              <span className="w-8 h-8 rounded-full bg-brand-blue text-white flex items-center justify-center font-bold text-sm">
+                5
               </span>
-              <h3 className="font-display text-2xl text-brand-orange">
-                Add a Charm
+              <h3 className="font-display text-2xl text-brand-blue">
+                Gantungan Tambahan (Charm)
               </h3>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -315,18 +417,18 @@ export default function CustomizePage() {
           <div className="mt-8 pt-8 border-t-2 border-brand-blue-light flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex flex-col">
               <span className="text-sm font-bold text-foreground/50 uppercase tracking-wide">
-                Total Price
+                Harga Custom Handmade
               </span>
               <span className="font-display text-3xl text-brand-blue">
-                Rp 10.000
+                Rp 15.000
               </span>
             </div>
             <Button
               size="lg"
-              className="w-full sm:w-auto h-16 px-10 text-xl gap-3"
+              className="w-full sm:w-auto h-16 px-10 text-xl gap-3 shadow-lg"
               onClick={handleAddToCart}
             >
-              <ShoppingBag className="w-6 h-6" /> Add to Cart
+              <ShoppingBag className="w-6 h-6" /> Masukkan Keranjang
             </Button>
           </div>
         </div>
