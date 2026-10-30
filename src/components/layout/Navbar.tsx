@@ -10,10 +10,14 @@ import { Button } from "@/components/ui/Button";
 import { useCart } from "@/lib/cart-context";
 import { useSession, signOut } from "next-auth/react";
 
+/** Field tambahan yang disuntikkan lib/auth.ts ke session.user. */
+type SessionUserWithRole = { role?: string };
+
 const navLinks = [
   { name: "Home", href: "/" },
   { name: "Shop", href: "/shop" },
   { name: "Customize", href: "/customize" },
+  { name: "Buat dengan AI", href: "/create" },
   { name: "Coloring", href: "/coloring" },
   { name: "Playground", href: "/playground" },
   { name: "Community", href: "/community" },
@@ -26,7 +30,7 @@ export function Navbar() {
   const { data: session, status } = useSession();
 
   const isLoggedIn = status === "authenticated";
-  const isAdmin = isLoggedIn && (session?.user as any)?.role === "admin";
+  const isAdmin = isLoggedIn && (session?.user as SessionUserWithRole | undefined)?.role === "admin";
 
   return (
     <header className="sticky top-0 z-50 w-full bg-[#FFFBF2]/90 backdrop-blur-md border-b-2 border-brand-blue-light">

@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { supabase, SUPABASE_NOT_CONFIGURED_MESSAGE } from "./supabase";
 
 export interface DbUser {
   id: number;
@@ -30,10 +30,24 @@ export interface DbOrder {
   created_at: string;
 }
 
+// ─── Helper ─────────────────────────────────────────────────────────────────
+
+/**
+ * Kembalikan client Supabase, atau lempar error yang mudah dibaca bila
+ * kredensial belum diisi. Dipakai di semua query supaya tipe tetap sempit
+ * (bukan `null`) dan pemanggil tidak perlu cek berulang.
+ */
+function requireClient() {
+  if (!supabase) throw new Error(SUPABASE_NOT_CONFIGURED_MESSAGE);
+  return supabase;
+}
+
 // ─── User Queries (Supabase Cloud) ──────────────────────────────────────────
 
 export const userQueries = {
   findByEmail: async (email: string): Promise<DbUser | undefined> => {
+    if (!supabase) return undefined;
+
     const { data, error } = await supabase
       .from("users")
       .select("*")
@@ -48,6 +62,8 @@ export const userQueries = {
   },
 
   findById: async (id: number): Promise<DbUser | undefined> => {
+    if (!supabase) return undefined;
+
     const { data, error } = await supabase
       .from("users")
       .select("*")
@@ -67,11 +83,12 @@ export const userQueries = {
     password: string,
     role: string = "user"
   ): Promise<number> => {
-    const { data, error } = await supabase
+    const { data, error } = await requireClient()
       .from("users")
       .insert([{ name, email, password, role }])
       .select("id")
       .single();
+
 
     if (error) {
       console.error("userQueries.create error:", error);
@@ -99,7 +116,7 @@ export const orderQueries = {
     shipping: number,
     total: number
   ): Promise<number> => {
-    const { data, error } = await supabase
+    const { data, error } = await requireClient()
       .from("orders")
       .insert([
         {
@@ -130,6 +147,8 @@ export const orderQueries = {
   },
 
   findAll: async (): Promise<DbOrder[]> => {
+    if (!supabase) return [];
+
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -143,6 +162,8 @@ export const orderQueries = {
   },
 
   findByUserId: async (uid: number): Promise<DbOrder[]> => {
+    if (!supabase) return [];
+
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -157,6 +178,8 @@ export const orderQueries = {
   },
 
   findByOrderId: async (oid: string): Promise<DbOrder | undefined> => {
+    if (!supabase) return undefined;
+
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -171,7 +194,7 @@ export const orderQueries = {
   },
 
   updateStatus: async (status: string, order_id: string): Promise<void> => {
-    const { error } = await supabase
+    const { error } = await requireClient()
       .from("orders")
       .update({ status })
       .eq("order_id", order_id);
@@ -187,7 +210,7 @@ export const orderQueries = {
     result_image: string,
     admin_notes: string = ""
   ): Promise<void> => {
-    const { error } = await supabase
+    const { error } = await requireClient()
       .from("orders")
       .update({ result_image, admin_notes })
       .eq("order_id", order_id);
@@ -199,7 +222,7 @@ export const orderQueries = {
   },
 
   delete: async (order_id: string): Promise<void> => {
-    const { error } = await supabase
+    const { error } = await requireClient()
       .from("orders")
       .delete()
       .eq("order_id", order_id);

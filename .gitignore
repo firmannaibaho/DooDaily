@@ -46,5 +46,18 @@ next-env.d.ts
 *.db
 *.db-shm
 *.db-wal
+
+# alat pengembangan & testing — tidak ikut repo
 /scripts/
+*.test.*
+*.spec.*
+/test-results/
+/playwright-report/
+/coverage/
+
+# lab / catatan lokal (tidak ikut repo)
+/docs/
+/image-gen-beta/
+*.log
+retry-test-result.txt
 
