@@ -1,7 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { AUTH_SECRET } from '@/lib/auth';
+
+/**
+ * Middleware berjalan di Edge runtime, sehingga TIDAK boleh mengimpor
+ * `@/lib/auth` (modul itu memuat bcrypt & Supabase yang khusus Node).
+ * Secret dibaca langsung dari env — nilainya harus sama dengan yang dipakai
+ * Auth.js. AUTH_SECRET diutamakan (konvensi Auth.js v5).
+ */
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
