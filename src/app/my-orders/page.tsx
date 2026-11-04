@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Package, ArrowLeft, Sparkles, Camera, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ChatContextButton } from "@/components/chat/ChatContextButton";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-700",
@@ -139,33 +140,95 @@ export default function MyOrdersPage() {
 
                 {/* Items */}
                 {items.length > 0 && (
-                  <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-2 mb-4">
+                  <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-3 mb-4">
                     {items.map((item: any, i: number) => (
-                      <div key={i} className="flex flex-col gap-1 border-b border-gray-200/50 pb-2 last:border-none last:pb-0">
-                        <div className="flex justify-between font-bold">
-                          <span>
-                            {item.name} <span className="text-brand-orange text-xs">x{item.quantity}</span>
-                          </span>
-                          <span className="text-brand-blue">
-                            {formatRupiah(item.price * item.quantity)}
-                          </span>
+                      <div
+                        key={i}
+                        className="flex gap-3 border-b border-gray-200/60 pb-3 last:border-none last:pb-0"
+                      >
+                        {/* Gambar produk / hasil AI */}
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden bg-white border border-gray-200 shrink-0 flex items-center justify-center">
+                          {item.image ? (
+                            /* eslint-disable-next-line @next/next/no-img-element -- bisa berupa data URI hasil AI */
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <Package className="w-6 h-6 text-foreground/25" />
+                          )}
                         </div>
-                        {item.customizations && item.customizations.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-0.5">
-                            {item.customizations.map((c: string, cIdx: number) => (
-                              <span
-                                key={cIdx}
-                                className="text-[11px] bg-white border border-gray-200 px-2 py-0.5 rounded-lg text-foreground/70"
-                              >
-                                {c}
-                              </span>
-                            ))}
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between gap-2 font-bold">
+                            <span className="min-w-0">
+                              {item.name}{" "}
+                              <span className="text-brand-orange text-xs">x{item.quantity}</span>
+                            </span>
+                            <span className="text-brand-blue whitespace-nowrap">
+                              {formatRupiah(item.price * item.quantity)}
+                            </span>
                           </div>
-                        )}
+                          {item.customizations && item.customizations.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {item.customizations.map((c: string, cIdx: number) => (
+                                <span
+                                  key={cIdx}
+                                  className="text-[11px] bg-white border border-gray-200 px-2 py-0.5 rounded-lg text-foreground/70"
+                                >
+                                  {c}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
+
+                {/* RINCIAN BIAYA & PENGIRIMAN */}
+                <div className="mb-4 rounded-2xl border border-line bg-[#FFFBF2] p-4 text-sm space-y-1.5">
+                  <div className="flex justify-between text-foreground/70 font-medium">
+                    <span>Subtotal</span>
+                    <span>{formatRupiah(order.subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between text-foreground/70 font-medium">
+                    <span>Ongkir</span>
+                    <span>{formatRupiah(order.shipping)}</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-brand-blue pt-1.5 border-t border-line">
+                    <span>Total</span>
+                    <span>{formatRupiah(order.total)}</span>
+                  </div>
+                  <div className="pt-2 mt-2 border-t border-line/70 text-xs text-foreground/60 font-medium space-y-0.5">
+                    <p className="text-brand-blue font-bold uppercase tracking-wider text-[10px] mb-1">
+                      Dikirim ke
+                    </p>
+                    <p className="text-foreground/80 font-bold">{order.customer_name}</p>
+                    <p>
+                      {order.address}, {order.city}
+                    </p>
+                    <p>
+                      {order.phone} · {order.email}
+                    </p>
+                    {order.notes && (
+                      <p className="italic mt-1">&ldquo;{order.notes}&rdquo;</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* TOMBOL CHAT SOAL PESANAN INI */}
+                <div className="mt-4 pt-4 border-t border-line flex justify-end">
+                  <ChatContextButton
+                    kind="order"
+                    orderId={order.order_id}
+                    label="Chat soal pesanan ini"
+                    variant="ghost"
+                  />
+                </div>
 
                 {/* FOTO HASIL JADI DARI ADMIN (JIKA SUDAH DIUPLOAD) */}
                 {order.result_image && (

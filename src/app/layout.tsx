@@ -3,6 +3,7 @@ import { Quicksand, Fredoka } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { ChatWidget } from "@/components/chat/ChatWidget";
 import { Providers } from "./providers";
 
 const quicksand = Quicksand({
@@ -52,6 +53,7 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-grow">{children}</main>
           <Footer />
+          <ChatWidget />
         </Providers>
       </body>
     </html>

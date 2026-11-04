@@ -236,6 +236,25 @@ export default function AdminDashboard() {
         </div>
       </div>
 
+      {/* Kartu Pesan Belum Dibaca */}
+      <div className="mb-8">
+        <Link
+          href="/admin/chat"
+          className="flex items-center gap-4 bg-white rounded-3xl border-2 border-brand-blue-light p-5 hover:border-brand-blue transition-colors group"
+        >
+          <div className="w-12 h-12 rounded-2xl bg-brand-blue-light flex items-center justify-center shrink-0">
+            <MessageSquareHeart className="w-6 h-6 text-brand-blue" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-bold text-brand-blue">Pesan Masuk</h2>
+            <p className="text-xs text-foreground/50">
+              Chat dari pembeli: umum, keranjang, dan per pesanan
+            </p>
+          </div>
+          <ArrowRight className="w-5 h-5 text-brand-blue shrink-0 group-hover:translate-x-1 transition-transform" />
+        </Link>
+      </div>
+
       {/* Recent Orders Table */}
       <div className="bg-white rounded-3xl border-2 border-brand-blue-light p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
