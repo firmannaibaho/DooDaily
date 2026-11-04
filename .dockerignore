@@ -1,0 +1,52 @@
+# ── Dependencies (di-install ulang di dalam image) ─────────────────
+node_modules
+.pnp
+.pnp.*
+
+# ── Hasil build lokal (dibangun ulang di stage builder) ────────────
+.next
+out
+build
+dist
+*.tsbuildinfo
+
+# ── RAHASIA: JANGAN pernah masuk image ─────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# ── Version control & tooling ──────────────────────────────────────
+.git
+.gitignore
+.github
+.vscode
+.idea
+.vercel
+*.log
+
+# ── Catatan & lab lokal (tidak dipakai runtime) ────────────────────
+docs
+image-gen-beta
+scripts
+data
+*.db
+*.db-shm
+*.db-wal
+retry-test-result.txt
+
+# ── Testing ────────────────────────────────────────────────────────
+coverage
+test-results
+playwright-report
+*.test.*
+*.spec.*
+
+# ── OS junk ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+README.md
+CLAUDE.md
+AGENTS.md
