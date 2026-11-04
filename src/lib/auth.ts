@@ -51,5 +51,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/login",
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+  /**
+   * Di belakang reverse proxy (Jelastic/DewaCloud, Nginx, Docker) Auth.js
+   * menerima header Host dari proxy. Tanpa ini Auth.js melempar
+   * `UntrustedHost` dan /api/auth/session balas 500.
+   */
+  trustHost: true,
 });
