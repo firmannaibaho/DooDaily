@@ -3,6 +3,15 @@ import Credentials from "next-auth/providers/credentials";
 import { userQueries } from "./db";
 import bcrypt from "bcryptjs";
 
+/**
+ * Secret tunggal untuk Auth.js DAN middleware proxy.
+ * Nilai ini dipakai menandatangani/membaca JWT, jadi harus identik di kedua
+ * tempat. Dipusatkan di sini agar tidak pernah berbeda.
+ *
+ * Prioritas: AUTH_SECRET (konvensi Auth.js v5) → NEXTAUTH_SECRET (v4).
+ */
+export const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "";
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     Credentials({
@@ -51,7 +60,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/login",
   },
-  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
+  /**
+   * Secret dipakai untuk menandatangani JWT. `proxy.ts` membaca token dengan
+   * secret yang HARUS sama, jadi nilainya dipusatkan di satu konstanta ini.
+   * AUTH_SECRET diutamakan agar selaras dengan konvensi Auth.js v5.
+   */
+  secret: AUTH_SECRET,
   /**
    * Di belakang reverse proxy (Jelastic/DewaCloud, Nginx, Docker) Auth.js
    * menerima header Host dari proxy. Tanpa ini Auth.js melempar
