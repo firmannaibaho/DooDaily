@@ -7,6 +7,7 @@ import {
   RefreshCw,
   Search,
   MessageCircle,
+  MessageSquareHeart,
   Trash2,
   ExternalLink,
   ChevronDown,
@@ -340,6 +341,13 @@ export default function AdminOrdersPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <Link
+                        href={`/admin/chat?order=${encodeURIComponent(order.order_id)}`}
+                        title="Chat dengan pembeli soal pesanan ini"
+                        className="inline-flex items-center gap-1.5 bg-brand-blue hover:bg-[#3A649E] text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm hover:scale-105"
+                      >
+                        <MessageSquareHeart className="w-4 h-4" /> Chat
+                      </Link>
                       <a
                         href={createWhatsAppLink(order)}
                         target="_blank"

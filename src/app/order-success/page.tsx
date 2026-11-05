@@ -4,6 +4,7 @@ import React, { useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { ChatContextButton } from "@/components/chat/ChatContextButton";
 import {
   CheckCircle,
   Package,
@@ -207,6 +208,16 @@ function OrderSuccessContent() {
               Kembali ke Beranda
             </Button>
           </Link>
+        </div>
+
+        {/* Chat langsung ke admin soal pesanan ini */}
+        <div className="mt-4 flex justify-center">
+          <ChatContextButton
+            kind="order"
+            orderId={orderId}
+            label="Chat Admin soal pesanan ini"
+            className="h-12 px-6"
+          />
         </div>
       </div>
     </div>

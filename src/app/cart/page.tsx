@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Trash2, ChevronRight, Lock, ShieldAlert } from "lucide-react";
 import { useCart } from "@/lib/cart-context";
 import { useSession } from "next-auth/react";
+import { ChatContextButton } from "@/components/chat/ChatContextButton";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal } = useCart();
@@ -161,6 +162,10 @@ export default function CartPage() {
               </Button>
             </Link>
           )}
+
+          <div className="mt-4">
+            <ChatContextButton kind="cart" className="w-full" variant="ghost" />
+          </div>
 
           <div className="mt-6 flex justify-center items-center gap-2 text-xs text-foreground/50 font-medium">
             <Lock className="w-4 h-4" /> Secure Checkout

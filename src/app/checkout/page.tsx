@@ -13,10 +13,12 @@ import {
   Package,
   CheckCircle,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-context";
 import { useSession } from "next-auth/react";
+import { ChatContextButton } from "@/components/chat/ChatContextButton";
 
 interface FormData {
   firstName: string;
@@ -30,19 +32,17 @@ interface FormData {
 
 const WHATSAPP_NUMBER = "6285156524928"; // Ganti dengan nomor WA Doodaily
 
-function generateOrderId() {
-  const ts = Date.now().toString(36).toUpperCase();
-  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `DDL-${ts}-${rand}`;
-}
+/** Batas waktu permintaan simpan pesanan (ms). */
+const SAVE_ORDER_TIMEOUT_MS = 20_000;
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "admin";
+  const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState("qris");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const { items, subtotal, clearCart } = useCart();
 
   const [form, setForm] = useState<FormData>({
@@ -94,16 +94,7 @@ export default function CheckoutPage() {
 
   const handlePlaceOrder = async () => {
     setIsSubmitting(true);
-
-    const orderId = generateOrderId();
-
-    // Build WhatsApp message
-    const itemLines = items
-      .map(
-        (item) =>
-          `• ${item.name}${item.customizations.length ? ` (${item.customizations.join(", ")})` : ""} x${item.quantity} = Rp ${(item.price * item.quantity).toLocaleString("id-ID")}`
-      )
-      .join("\n");
+    setSubmitError(null);
 
     const methodLabel =
       paymentMethod === "qris"
@@ -112,6 +103,64 @@ export default function CheckoutPage() {
           ? "Transfer Bank (BCA)"
           : "COD (Bayar di Tempat)";
 
+    const itemLines = items
+      .map(
+        (item) =>
+          `• ${item.name}${item.customizations.length ? ` (${item.customizations.join(", ")})` : ""} x${item.quantity} = Rp ${(item.price * item.quantity).toLocaleString("id-ID")}`
+      )
+      .join("\n");
+
+    // ── 1. SIMPAN PESANAN KE DATABASE ────────────────────────────────
+    // Sebelumnya langkah ini tidak ada sehingga tabel `orders` selalu kosong
+    // dan pesanan hanya terkirim lewat WhatsApp. order_id sekarang dibuat
+    // oleh SERVER agar konsisten dengan data yang tersimpan.
+    let orderId: string;
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(SAVE_ORDER_TIMEOUT_MS),
+        body: JSON.stringify({
+          customer_name: `${form.firstName} ${form.lastName}`.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          address: form.address.trim(),
+          city: form.city.trim(),
+          notes: form.notes.trim(),
+          payment_method: paymentMethod,
+          items_json: JSON.stringify(items),
+          subtotal,
+          shipping,
+          total,
+        }),
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | { order_id?: string; message?: string }
+        | null;
+
+      if (!response.ok || !data?.order_id) {
+        setSubmitError(
+          data?.message ||
+            "Pesanan gagal disimpan. Periksa koneksi lalu coba lagi."
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      orderId = data.order_id;
+    } catch (error) {
+      const timedOut = error instanceof Error && error.name === "TimeoutError";
+      setSubmitError(
+        timedOut
+          ? "Server terlalu lama merespons. Coba lagi sebentar."
+          : "Tidak dapat menghubungi server. Periksa koneksi Anda."
+      );
+      setIsSubmitting(false);
+      return;
+    }
+
+    // ── 2. SUSUN PESAN WHATSAPP (pakai order_id dari server) ─────────
     const message =
       `🛍️ *PESANAN BARU — Doodaily Art*\n` +
       `━━━━━━━━━━━━━━━━━\n` +
@@ -134,13 +183,9 @@ export default function CheckoutPage() {
 
     const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 
-    // Short delay for UX feel
-    await new Promise((r) => setTimeout(r, 800));
-
-    // Clear cart
+    // ── 3. SELESAIKAN ────────────────────────────────────────────────
     clearCart();
 
-    // Navigate to success page with params
     const successParams = new URLSearchParams({
       orderId,
       name: form.firstName,
@@ -552,6 +597,12 @@ export default function CheckoutPage() {
               )}
 
               <div className="mt-8 pt-6 border-t-2 border-dashed border-gray-200">
+                {submitError && (
+                  <div className="mb-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    <p className="text-sm font-bold text-red-700 leading-snug">{submitError}</p>
+                  </div>
+                )}
                 <Button
                   className="w-full h-16 text-xl rounded-full gap-3 shadow-[0_6px_0_0_#2B4C7E] hover:shadow-[0_2px_0_0_#2B4C7E] hover:translate-y-[4px] transition-all"
                   onClick={handlePlaceOrder}
@@ -573,6 +624,9 @@ export default function CheckoutPage() {
                   <Smartphone className="w-3.5 h-3.5" />
                   Pesanan akan langsung dikirim via WhatsApp untuk konfirmasi
                 </p>
+                <div className="mt-4">
+                  <ChatContextButton kind="cart" className="w-full" variant="ghost" />
+                </div>
               </div>
             </div>
           )}
