@@ -17,7 +17,6 @@ const navLinks = [
   { name: "Home", href: "/" },
   { name: "Shop", href: "/shop" },
   { name: "Customize", href: "/customize" },
-  { name: "Buat dengan AI", href: "/create" },
   { name: "Coloring", href: "/coloring" },
   { name: "Playground", href: "/playground" },
   { name: "Community", href: "/community" },
