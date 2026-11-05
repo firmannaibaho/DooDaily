@@ -21,11 +21,9 @@
 - [Tech Stack](#️-tech-stack)
 - [Struktur Proyek](#-struktur-proyek)
 - [Mulai Cepat](#-mulai-cepat)
-- [Environment Variables](#-environment-variables)
 - [Skema Database](#️-skema-database)
 - [Dokumentasi API](#-dokumentasi-api)
 - [Alur Pengguna](#-alur-pengguna)
-- [Deployment](#-deployment)
 - [Kontribusi](#-kontribusi)
 - [Lisensi](#-lisensi)
 
@@ -157,15 +155,12 @@ DooDaily/
 │
 ├── public/                   # Aset statis (gambar, audio)
 ├── supabase-schema.sql       # Skema tabel users & orders
-├── Dockerfile                # Build produksi standalone
-├── DEPLOY.md                 # Panduan deployment
 └── .env.example              # Template environment
 ```
 
 > `src/proxy.ts` adalah middleware Next.js 16 yang memproteksi `/admin/*`.
 
 ---
-
 
 ## 🚀 Mulai Cepat
 
@@ -189,7 +184,7 @@ npm install
 
 # 3. Salin template environment
 cp .env.example .env.local
-# → lalu isi nilainya (lihat bagian Environment Variables)
+# → lalu isi nilainya sesuai contoh di dalam file
 
 # 4. Siapkan database
 #    Buka Supabase → SQL Editor → jalankan isi supabase-schema.sql
@@ -200,20 +195,11 @@ npm run dev
 
 Buka **[http://localhost:3000](http://localhost:3000)**
 
-### Akun Admin Default
+### Akun Admin
 
-Buat admin pertama dengan mengunjungi (sekali saja):
-
-```
-http://localhost:3000/api/seed
-```
-
-| Field | Nilai |
-|---|---|
-| Email | `admin@doodaily.com` |
-| Password | `doodaily123` |
-
-> ⚠️ **Segera ganti password setelah login pertama di produksi.**
+Admin pertama dibuat lewat endpoint `/api/seed` (hanya bisa dipakai selama belum ada
+user ber-role `admin`), lalu masuk melalui halaman **`/login`**. Kredensial tidak
+disimpan di dalam repositori.
 
 ### Perintah Tersedia
 
@@ -226,38 +212,22 @@ http://localhost:3000/api/seed
 
 ---
 
-## 🔐 Environment Variables
+## 🔐 Variabel Environment
 
-Buat file `.env.local` di root project:
+Konfigurasi dibaca dari `.env.local`. Daftar nama variabel yang dibutuhkan tersedia
+di **[`.env.example`](./.env.example)** — file itulah satu-satunya acuan, karena
+nilainya berbeda untuk setiap lingkungan.
 
-```env
-# ── Supabase ─────────────────────────────────────────────
-# Project Settings → API
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxxxx
+| Variabel | Keterangan |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL project Supabase |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon/publishable key (aman di client, dibatasi RLS) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Key server-only, **melewati RLS** |
+| `NEXTAUTH_SECRET` / `AUTH_SECRET` | Secret Auth.js, nilainya harus sama |
 
-# Server-only — JANGAN beri prefix NEXT_PUBLIC_
-SUPABASE_SERVICE_ROLE_KEY=sb_secret_xxxxx
-
-# ── NextAuth ─────────────────────────────────────────────
-# Generate: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-NEXTAUTH_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-AUTH_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   # nilai SAMA dengan NEXTAUTH_SECRET
-```
-
-### Catatan Penting
-
-| Variabel | Kapan Dibaca | Keterangan |
-|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | **Build** | Ditanam ke bundle client — wajib ada saat build |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | **Build** | Aman di client, dibatasi RLS |
-| `SUPABASE_SERVICE_ROLE_KEY` | Runtime | **Melewati RLS** — server-only, jangan pernah di-commit |
-| `NEXTAUTH_SECRET` / `AUTH_SECRET` | Runtime | **Harus sama nilainya** — dipakai Auth.js & middleware |
-
-> ⚠️ `.env*` sudah masuk `.gitignore`. Jangan pernah commit kredensial.
+> ⚠️ File `.env*` sudah masuk `.gitignore`. Kredensial tidak pernah masuk repositori.
 
 ---
-
 
 ## 🗄️ Skema Database
 
@@ -321,7 +291,7 @@ CREATE INDEX idx_chat_threads_last    ON public.chat_threads (last_message_at DE
 | `POST` | `/api/auth/callback/credentials` | Publik | Login |
 | `GET` | `/api/auth/session` | Publik | Ambil sesi aktif |
 | `POST` | `/api/register` | Publik | Registrasi user baru (role otomatis `user`) |
-| `GET` | `/api/seed` | Publik | Buat admin default (sekali pakai) |
+| `GET` | `/api/seed` | Publik | Seed admin pertama (sekali pakai) |
 
 ### Pesanan
 
@@ -359,7 +329,6 @@ CREATE INDEX idx_chat_threads_last    ON public.chat_threads (last_message_at DE
 
 ---
 
-
 ## 🔄 Alur Pengguna
 
 ```
@@ -394,48 +363,6 @@ Satu sistem, tiga konteks percakapan:
 
 Pesan di-polling tiap **4 detik** saat panel terbuka, dan badge unread tiap **15 detik**.
 Rate limit: **1 pesan / 2 detik** dan maksimal **30 pesan / menit**.
-
----
-
-## 🚢 Deployment
-
-Panduan lengkap tersedia di **[DEPLOY.md](./DEPLOY.md)**.
-
-### Ringkasan
-
-**Node.js version:** ≥ 20.9.0 (disarankan 22 LTS)
-
-```bash
-npm install
-npm run build
-npm start
-```
-
-### Docker
-
-```bash
-docker build -t doodaily .
-docker run -p 3000:3000 --env-file .env.production doodaily
-```
-
-### Spesifikasi server minimum
-
-| Resource | Minimum | Rekomendasi |
-|---|---|---|
-| vCPU | 1 | 2 |
-| RAM (build) | 2 GB | 4 GB |
-| RAM (runtime) | 512 MB | 1 GB |
-| Disk | 5 GB | 10 GB |
-| Port | 3000 | 3000 |
-
-### Checklist produksi
-
-- [ ] `NEXT_PUBLIC_*` di-set **saat build**, bukan hanya runtime
-- [ ] `NEXTAUTH_SECRET` & `AUTH_SECRET` bernilai **sama** dan acak ≥ 32 byte
-- [ ] `HOSTNAME=0.0.0.0` agar container dapat diakses dari luar
-- [ ] `SUPABASE_SERVICE_ROLE_KEY` di-rotate sebelum go-live
-- [ ] Hapus atau proteksi `/api/seed` setelah admin pertama dibuat
-- [ ] Database Supabase minimal paket Free (500 MB) — cukup untuk ±500 pesanan
 
 ---
 
