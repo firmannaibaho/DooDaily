@@ -105,7 +105,7 @@ export function ChatWidget() {
     <>
       {/* Panel */}
       {isOpen && isLoggedIn && (
-        <div className="fixed bottom-24 right-4 sm:right-6 z-50 animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div className="fixed bottom-[10.5rem] right-4 sm:right-6 z-[60] animate-in fade-in slide-in-from-bottom-3 duration-200">
           <ChatShell
             title="Chat Admin"
             subtitle={subtitle}
@@ -163,12 +163,15 @@ export function ChatWidget() {
       )}
 
       {/* Tombol bubble */}
+      {/* Tombol bubble chat.
+          Ditumpuk VERTIKAL di atas tombol musik (kanan bawah) agar tidak
+          saling menutupi — keduanya sebelumnya memakai bottom-6 right-6. */}
       <button
         type="button"
         onClick={handleToggle}
         aria-label={isOpen ? "Tutup chat" : "Chat admin"}
         className={cn(
-          "fixed bottom-6 right-4 sm:right-6 z-50 w-14 h-14 rounded-full shadow-[0_6px_0_0_#2B4C7E]",
+          "fixed bottom-24 right-4 sm:right-6 z-[61] w-14 h-14 rounded-full shadow-[0_6px_0_0_#2B4C7E]",
           "bg-brand-blue text-white flex items-center justify-center",
           "transition-all hover:shadow-[0_3px_0_0_#2B4C7E] hover:translate-y-[3px] active:shadow-none"
         )}

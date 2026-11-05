@@ -47,7 +47,7 @@ export function ChatShell({
         "flex flex-col bg-[#FFFBF2] border border-line overflow-hidden",
         fullscreen
           ? "w-full h-full rounded-[1.5rem]"
-          : "w-[calc(100vw-2rem)] max-w-[22rem] sm:max-w-[24rem] h-[min(32rem,calc(100vh-6rem))] rounded-[1.5rem]",
+          : "w-[calc(100vw-2rem)] max-w-[22rem] sm:max-w-[24rem] h-[min(30rem,calc(100vh-14rem))] rounded-[1.5rem]",
         className
       )}
     >
