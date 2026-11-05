@@ -2,9 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /**
-   * Mode standalone menghasilkan server mandiri + node_modules minimal
-   * sehingga image Docker jauh lebih kecil (≈150 MB vs ≈1 GB).
-   * Dipakai oleh deploy container (DewaCloud).
+   * Mode standalone menghasilkan server mandiri + node_modules minimal,
+   * sehingga ukuran hasil build jauh lebih kecil dan proses start lebih cepat.
    */
   output: "standalone",
 
