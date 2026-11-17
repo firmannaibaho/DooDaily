@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, Suspense } from "react";
+import React, { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -13,22 +13,135 @@ import {
   Copy,
 } from "lucide-react";
 
+/** Bentuk data pesanan yang dikembalikan GET /api/orders/[order_id]. */
+interface LoadedOrder {
+  order_id: string;
+  customer_name: string;
+  payment_method: string;
+  total: number;
+}
+
 function OrderSuccessContent() {
   const params = useSearchParams();
-  const orderId = params.get("orderId") || "DDL-XXXX";
-  const name = params.get("name") || "Pelanggan";
-  const method = params.get("method") || "qris";
-  const total = params.get("total") || "0";
+  const orderId = params.get("orderId") || "";
   const waLink = params.get("wa") || "";
 
+  /**
+   * Data pesanan diambil dari server, bukan dari query string.
+   *
+   * KENAPA: sebelumnya `name`, `method`, dan `total` dibaca dari URL sehingga
+   * siapa pun bisa membuka `/order-success?orderId=DDL-XXXX&name=Budi&total=1`
+   * dan melihat halaman "Pesanan Masuk!" palsu. Sekarang server yang menentukan
+   * kebenarannya, dan endpoint hanya mengembalikan pesanan milik user tersebut.
+   */
+  const [order, setOrder] = useState<LoadedOrder | null>(null);
+  // Tanpa orderId tidak ada yang perlu dimuat: status awal langsung final,
+  // sehingga effect tidak perlu memanggil setState secara sinkron.
+  const [loading, setLoading] = useState(Boolean(orderId));
+  const [error, setError] = useState<string | null>(
+    orderId ? null : "ID pesanan tidak ditemukan."
+  );
+
   useEffect(() => {
-    // Confetti animation using CSS
     document.title = "Pesanan Berhasil! | Doodaily Art";
   }, []);
 
+  useEffect(() => {
+    if (!orderId) return;
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
+          signal: controller.signal,
+        });
+        const data = (await res.json().catch(() => null)) as
+          | { order?: LoadedOrder; message?: string }
+          | null;
+
+        if (cancelled) return;
+
+        if (!res.ok || !data?.order) {
+          setError(data?.message || "Pesanan tidak dapat dimuat.");
+        } else {
+          setOrder(data.order);
+        }
+      } catch (e) {
+        if (cancelled) return;
+        if (e instanceof Error && e.name === "AbortError") return;
+        setError("Tidak dapat menghubungi server.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [orderId]);
+
+  const name = order?.customer_name || "Pelanggan";
+  const method = order?.payment_method || "qris";
+  const total = order?.total ?? 0;
+
   const copyOrderId = () => {
-    navigator.clipboard.writeText(orderId);
+    if (orderId) navigator.clipboard.writeText(orderId);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-brand-blue border-t-transparent mx-auto mb-4" />
+          <p className="text-foreground/50 font-medium">Memuat pesanan...</p>
+        </div>
+      </div>
+    );
+  }
+
+  /**
+   * Tanpa pesanan yang sah, jangan tampilkan halaman sukses sama sekali.
+   * Ini menutup celah /order-success yang bisa dibuka langsung dari URL.
+   */
+  if (error || !order) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4 py-16">
+        <div className="max-w-lg w-full text-center">
+          <div className="w-20 h-20 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-6">
+            <Package className="w-10 h-10" />
+          </div>
+          <h1 className="font-display text-3xl text-brand-blue mb-3">
+            Pesanan Tidak Ditemukan
+          </h1>
+          <p className="text-foreground/70 font-medium mb-8 leading-relaxed">
+            {error ?? "Pesanan tidak dapat dimuat."} Pastikan kamu sudah login
+            dengan akun yang dipakai saat memesan.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/my-orders" className="flex-1">
+              <Button size="lg" className="w-full h-14 text-lg rounded-full gap-3">
+                <Package className="w-5 h-5" />
+                Lihat Pesanan Saya
+              </Button>
+            </Link>
+            <Link href="/shop" className="flex-1">
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full h-14 text-lg rounded-full gap-3 border-2 border-brand-blue-light hover:border-brand-blue"
+              >
+                <Home className="w-5 h-5" />
+                Ke Toko
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-16">

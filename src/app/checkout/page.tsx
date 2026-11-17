@@ -14,6 +14,8 @@ import {
   CheckCircle,
   Loader2,
   AlertCircle,
+  UserPlus,
+  LogIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-context";
@@ -36,23 +38,182 @@ const WHATSAPP_NUMBER = "6285156524928"; // Ganti dengan nomor WA Doodaily
 const SAVE_ORDER_TIMEOUT_MS = 20_000;
 
 export default function CheckoutPage() {
-  const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+
+  // ── GERBANG STATUS SESI ──────────────────────────────────────────────────
+  // Jangan merender form sebelum sesi diketahui. Selain mencegah user yang
+  // sudah login sempat melihat gerbang, ini membuat nilai awal form di
+  // CheckoutForm bisa langsung memakai data akun tanpa perlu useEffect.
+  if (status === "loading") {
+    return (
+      <div className="container mx-auto px-4 py-24 max-w-xl min-h-[60vh] flex flex-col items-center justify-center">
+        <Loader2 className="w-10 h-10 text-brand-blue animate-spin mb-4" />
+        <p className="text-foreground/60 font-medium">Memeriksa sesi...</p>
+      </div>
+    );
+  }
+
+  // Checkout WAJIB punya akun.
+  if (status === "unauthenticated") {
+    return <CheckoutLoginGate />;
+  }
+
+  if (isAdmin) {
+    return <AdminBlocked />;
+  }
+
+  return <CheckoutForm sessionUser={session?.user} />;
+}
+
+/**
+ * Gerbang yang tampil saat pengunjung belum login.
+ *
+ * Kenapa berupa halaman, bukan redirect otomatis: user perlu tahu MENGAPA
+ * dialihkan, dan perlu yakin isi keranjangnya tidak hilang. Ringkasan
+ * keranjang ditampilkan untuk menegaskan hal itu.
+ */
+function CheckoutLoginGate() {
+  const { items } = useCart();
+  const loginHref = "/login?next=%2Fcheckout";
+  const registerHref = "/register?next=%2Fcheckout";
+
+  return (
+    <div className="container mx-auto px-4 py-16 max-w-2xl min-h-[70vh] flex flex-col items-center justify-center">
+      <div className="w-full bg-white rounded-3xl border-4 border-brand-blue-light shadow-[4px_4px_0px_0px_rgba(0,0,0,0.08)] p-8 text-center">
+        <div className="w-16 h-16 rounded-full bg-brand-blue/10 text-brand-blue flex items-center justify-center mx-auto mb-4">
+          <Lock className="w-8 h-8" />
+        </div>
+
+        <h1 className="font-display text-3xl text-brand-blue mb-2">
+          Login Dulu untuk Checkout
+        </h1>
+        <p className="text-foreground/70 font-medium mb-6 leading-relaxed">
+          Pesanan perlu terhubung ke akun supaya kamu bisa memantau status
+          produksi dan riwayat pesanan kapan saja.
+        </p>
+
+        {/* Ringkasan keranjang: menegaskan isi keranjang tetap aman */}
+        {items.length > 0 && (
+          <div className="bg-[#FFFBF2] rounded-2xl border-2 border-brand-blue-light p-4 mb-6 text-left">
+            <p className="text-sm font-bold text-foreground/70 mb-2">
+              Keranjangmu ({items.length} item) tetap tersimpan:
+            </p>
+            <ul className="space-y-1">
+              {items.slice(0, 4).map((item) => (
+                <li
+                  key={item.productId}
+                  className="flex justify-between text-sm text-foreground/70 font-medium"
+                >
+                  <span className="truncate pr-3">
+                    {item.name} ×{item.quantity}
+                  </span>
+                  <span className="shrink-0 font-bold">
+                    Rp {(item.price * item.quantity).toLocaleString("id-ID")}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {items.length > 4 && (
+              <p className="text-xs text-foreground/50 mt-2 font-medium">
+                dan {items.length - 4} item lainnya
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <Link href={loginHref} className="flex-1">
+            <Button size="lg" className="w-full rounded-xl gap-2">
+              <LogIn className="w-5 h-5" />
+              Masuk
+            </Button>
+          </Link>
+          <Link href={registerHref} className="flex-1">
+            <Button variant="outline" size="lg" className="w-full rounded-xl gap-2">
+              <UserPlus className="w-5 h-5" />
+              Daftar Akun
+            </Button>
+          </Link>
+        </div>
+
+        <Link
+          href="/cart"
+          className="inline-block mt-6 text-sm font-bold text-foreground/50 hover:text-brand-blue transition-colors"
+        >
+          ← Kembali ke keranjang
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/** Admin tidak boleh bertransaksi. */
+function AdminBlocked() {
+  return (
+    <div className="container mx-auto px-4 py-24 max-w-xl min-h-[70vh] flex flex-col items-center justify-center text-center">
+      <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-4 text-2xl font-bold">
+        🛡️
+      </div>
+      <h1 className="font-display text-3xl text-brand-blue mb-3">
+        Akun Admin Terdeteksi
+      </h1>
+      <p className="text-foreground/70 font-medium mb-6 leading-relaxed">
+        Akun dengan peran <b>Admin</b> dikhususkan untuk mengelola pesanan, stok, dan studio. Admin tidak diperbolehkan melakukan transaksi belanja / checkout.
+      </p>
+      <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+        <Link href="/admin">
+          <Button size="lg" className="rounded-xl w-full sm:w-auto">
+            Ke Dashboard Admin
+          </Button>
+        </Link>
+        <Link href="/admin/orders">
+          <Button variant="outline" size="lg" className="rounded-xl w-full sm:w-auto">
+            Kelola Pesanan
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Form checkout untuk user yang sudah login.
+ *
+ * Hanya dirender setelah status sesi "authenticated", sehingga nilai awal
+ * form bisa langsung memakai data akun tanpa useEffect.
+ */
+function CheckoutForm({
+  sessionUser,
+}: {
+  sessionUser: { name?: string | null; email?: string | null } | undefined;
+}) {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState("qris");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const { items, subtotal, clearCart } = useCart();
 
-  const [form, setForm] = useState<FormData>({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    address: "",
-    city: "",
-    notes: "",
+  /**
+   * Nilai awal form.
+   *
+   * Nama & email diambil dari akun yang login dan dipecah saat inisialisasi
+   * state (bukan di useEffect) agar tidak memicu cascading render. Karena
+   * hanya berlaku sebagai NILAI AWAL, ketikan user tidak pernah tertimpa.
+   */
+  const [form, setForm] = useState<FormData>(() => {
+    const sessionName = sessionUser?.name?.trim() ?? "";
+    const spaceIndex = sessionName.indexOf(" ");
+    return {
+      firstName: spaceIndex === -1 ? sessionName : sessionName.slice(0, spaceIndex),
+      lastName: spaceIndex === -1 ? "" : sessionName.slice(spaceIndex + 1),
+      email: sessionUser?.email ?? "",
+      phone: "",
+      address: "",
+      city: "",
+      notes: "",
+    };
   });
   const [formErrors, setFormErrors] = useState<Partial<FormData>>({});
 
@@ -140,6 +301,13 @@ export default function CheckoutPage() {
         | null;
 
       if (!response.ok || !data?.order_id) {
+        // Sesi kedaluwarsa / belum login: arahkan ke halaman login.
+        if (response.status === 401) {
+          setSubmitError("Sesi kamu sudah berakhir. Silakan login ulang.");
+          setIsSubmitting(false);
+          router.push("/login?next=%2Fcheckout");
+          return;
+        }
         setSubmitError(
           data?.message ||
             "Pesanan gagal disimpan. Periksa koneksi lalu coba lagi."
@@ -186,44 +354,14 @@ export default function CheckoutPage() {
     // ── 3. SELESAIKAN ────────────────────────────────────────────────
     clearCart();
 
-    const successParams = new URLSearchParams({
-      orderId,
-      name: form.firstName,
-      method: paymentMethod,
-      total: total.toString(),
-      wa: waUrl,
-    });
+    // Yang dikirim ke /order-success hanya order_id (dan tautan WhatsApp).
+    // Nama, metode bayar, dan total sengaja TIDAK dimasukkan karena halaman
+    // sukses mengambilnya dari server — mencegah data dipalsukan lewat URL.
+    const successParams = new URLSearchParams({ orderId });
+    if (waUrl) successParams.set("wa", waUrl);
 
     router.push(`/order-success?${successParams.toString()}`);
   };
-
-  if (isAdmin) {
-    return (
-      <div className="container mx-auto px-4 py-24 max-w-xl min-h-[70vh] flex flex-col items-center justify-center text-center">
-        <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mb-4 text-2xl font-bold">
-          🛡️
-        </div>
-        <h1 className="font-display text-3xl text-brand-blue mb-3">
-          Akun Admin Terdeteksi
-        </h1>
-        <p className="text-foreground/70 font-medium mb-6 leading-relaxed">
-          Akun dengan peran <b>Admin</b> dikhususkan untuk mengelola pesanan, stok, dan studio. Admin tidak diperbolehkan melakukan transaksi belanja / checkout.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-          <Link href="/admin">
-            <Button size="lg" className="rounded-xl w-full sm:w-auto">
-              Ke Dashboard Admin
-            </Button>
-          </Link>
-          <Link href="/admin/orders">
-            <Button variant="outline" size="lg" className="rounded-xl w-full sm:w-auto">
-              Kelola Pesanan
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   if (items.length === 0 && !isSubmitting) {
     return (

@@ -33,13 +33,24 @@ export async function GET() {
 
 /**
  * POST: Create a new order.
- *   If user is logged in, link order to user; otherwise user_id is null (guest).
+ *
+ * WAJIB LOGIN. Guest checkout sudah dihapus sejak fitur "checkout butuh akun"
+ * agar setiap pesanan punya pemilik yang jelas dan bisa dilacak di /my-orders.
+ * Pengecekan di sini tidak bisa dilewati dari UI karena berjalan di server.
  */
 export async function POST(request: Request) {
   const session = await auth();
 
+  // Belum login → tolak. Jangan lanjut dengan user_id null.
+  if (!session?.user) {
+    return NextResponse.json(
+      { message: "Silakan login atau daftar dulu sebelum checkout." },
+      { status: 401 }
+    );
+  }
+
   // Cegah role admin membuat transaksi / checkout
-  if ((session?.user as any)?.role === "admin") {
+  if ((session.user as any).role === "admin") {
     return NextResponse.json(
       { message: "Akun admin tidak diperkenankan melakukan transaksi checkout." },
       { status: 403 }
@@ -67,7 +78,19 @@ export async function POST(request: Request) {
   }
 
   const order_id = generateOrderId();
-  const user_id = session?.user ? Number((session.user as any).id) : null;
+  /**
+   * user_id selalu terisi karena guest sudah ditolak di atas.
+   * Nilai 0 / NaN menandakan sesi rusak (token tanpa id) → tolak, jangan
+   * menyimpan pesanan tanpa pemilik.
+   */
+  const user_id = Number((session.user as any).id);
+  if (!Number.isFinite(user_id) || user_id <= 0) {
+    return NextResponse.json(
+      { message: "Sesi tidak valid. Silakan login ulang." },
+      { status: 401 }
+    );
+  }
+
 
   try {
     await orderQueries.create(

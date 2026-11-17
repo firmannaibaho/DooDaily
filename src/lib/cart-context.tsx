@@ -40,6 +40,39 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+/** Kunci localStorage untuk keranjang sebelum login. */
+const GUEST_CART_KEY = "doodaily_cart_guest";
+
+/**
+ * Gabungkan dua daftar item keranjang.
+ *
+ * KENAPA MENGGABUNG, BUKAN MENIMPA:
+ * Saat guest login, keranjang guest harus dipindahkan ke kunci milik user.
+ * Kalau user itu sudah punya keranjang tersimpan (pernah belanja sebelumnya),
+ * isinya tidak boleh hilang — jadi item dengan productId sama dijumlahkan
+ * quantity-nya, sisanya digabung apa adanya.
+ */
+function mergeCartItems(base: CartItem[], incoming: CartItem[]): CartItem[] {
+  const merged = new Map<number, CartItem>();
+
+  for (const item of base) merged.set(item.productId, { ...item });
+
+  for (const item of incoming) {
+    const existing = merged.get(item.productId);
+    if (existing) {
+      merged.set(item.productId, {
+        ...existing,
+        quantity: existing.quantity + item.quantity,
+      });
+    } else {
+      merged.set(item.productId, { ...item });
+    }
+  }
+
+  return Array.from(merged.values());
+}
+
+
 export function CartProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
   const [items, setItems] = useState<CartItem[]>([]);
@@ -50,21 +83,51 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const userKey =
     status === "authenticated" && session?.user
       ? `doodaily_cart_user_${(session.user as any).id || session.user.email}`
-      : "doodaily_cart_guest";
+      : GUEST_CART_KEY;
 
   const prevUserKeyRef = useRef(userKey);
 
-  // Muat keranjang saat user berganti / status session siap
+  /**
+   * Muat keranjang untuk `userKey` yang aktif, sekaligus memindahkan isi
+   * keranjang guest bila user baru saja login.
+   *
+   * KENAPA DIGABUNG SATU EFEK:
+   * Tanpa migrasi, isi keranjang hilang begitu user login dari halaman
+   * checkout: guest menyimpan di `doodaily_cart_guest`, lalu setelah login
+   * kunci aktif berubah ke `doodaily_cart_user_<id>` yang masih kosong.
+   *
+   * Penggabungan (bukan penimpaan) menjaga keranjang yang sudah dimiliki user
+   * dari sesi sebelumnya. Kunci guest dihapus agar tidak termigrasi dua kali.
+   *
+   * Keduanya digabung dalam satu efek supaya hanya ada satu pemanggilan
+   * setItems per pergantian user — menghindari render berantai.
+   */
   useEffect(() => {
     if (status === "loading") return;
 
+    const isUserCart = userKey !== GUEST_CART_KEY;
+
     try {
+      // 1. Ambil keranjang milik kunci aktif (kosong bila belum ada).
       const stored = localStorage.getItem(userKey);
+      let nextItems: CartItem[] = [];
       if (stored) {
-        setItems(JSON.parse(stored));
-      } else {
-        setItems([]);
+        const parsed: unknown = JSON.parse(stored);
+        if (Array.isArray(parsed)) nextItems = parsed as CartItem[];
       }
+
+      // 2. Serap keranjang guest ke keranjang user, lalu bersihkan kuncinya.
+      const guestStored = isUserCart ? localStorage.getItem(GUEST_CART_KEY) : null;
+      if (guestStored) {
+        const guestParsed: unknown = JSON.parse(guestStored);
+        if (Array.isArray(guestParsed) && guestParsed.length > 0) {
+          nextItems = mergeCartItems(nextItems, guestParsed as CartItem[]);
+          localStorage.setItem(userKey, JSON.stringify(nextItems));
+        }
+        localStorage.removeItem(GUEST_CART_KEY);
+      }
+
+      setItems(nextItems);
     } catch (e) {
       console.error("Gagal membaca keranjang dari localStorage:", e);
       setItems([]);

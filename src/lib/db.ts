@@ -39,6 +39,20 @@ export interface DbOrder {
   created_at: string;
 }
 
+export interface DbTestimonial {
+  id: number;
+  customer_name: string;
+  product_name: string;
+  /** Opsional — sering kali gambar sudah memuat isi percakapan. */
+  message: string;
+  /** Nama berkas gambar testimoni di public/testimoni/, mis. "testimoni-1700000000-abc.jpg". */
+  image_path: string;
+  is_published: boolean;
+  sort_order: number;
+  created_by: number | null;
+  created_at: string;
+}
+
 // ─── Helper ─────────────────────────────────────────────────────────────────
 
 /**
@@ -615,3 +629,116 @@ export const chatQueries = {
     );
   },
 };
+
+// ─── Testimonial Queries ────────────────────────────────────────────────────
+
+/** Data yang boleh diisi saat menambah / mengubah testimoni. */
+export interface TestimonialInput {
+  customer_name: string;
+  product_name?: string;
+  /** Opsional — screenshot/foto biasanya sudah mewakili cerita pembeli. */
+  message?: string;
+  /**
+   * Nama berkas gambar testimoni di `public/testimoni/`.
+   * Wajib diisi saat menambah (lihat POST /api/testimonials).
+   */
+  image_path?: string;
+  is_published?: boolean;
+  sort_order?: number;
+}
+
+export const testimonialQueries = {
+  /**
+   * Daftar testimoni untuk halaman publik.
+   * Hanya yang `is_published = true`, diurutkan: sort_order terbesar dulu,
+   * lalu yang terbaru.
+   */
+  findPublished: async (): Promise<DbTestimonial[]> => {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("testimonials")
+      .select("*")
+      .eq("is_published", true)
+      .order("sort_order", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("testimonialQueries.findPublished error:", error);
+      return [];
+    }
+    return (data as DbTestimonial[]) || [];
+  },
+
+  /** Daftar seluruh testimoni untuk panel admin (termasuk draft). */
+  findAll: async (): Promise<DbTestimonial[]> => {
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("testimonials")
+      .select("*")
+      .order("sort_order", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("testimonialQueries.findAll error:", error);
+      return [];
+    }
+    return (data as DbTestimonial[]) || [];
+  },
+
+  create: async (
+    input: TestimonialInput,
+    createdBy: number
+  ): Promise<DbTestimonial> => {
+    const { data, error } = await requireClient()
+      .from("testimonials")
+      .insert([
+        {
+          customer_name: input.customer_name,
+          product_name: input.product_name ?? "",
+          message: input.message ?? "",
+          image_path: input.image_path ?? "",
+          is_published: input.is_published ?? true,
+          sort_order: input.sort_order ?? 0,
+          created_by: createdBy,
+        },
+      ])
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("testimonialQueries.create error:", error);
+      throw error;
+    }
+    return data as DbTestimonial;
+  },
+
+  update: async (
+    id: number,
+    input: Partial<TestimonialInput>
+  ): Promise<DbTestimonial | undefined> => {
+    const { data, error } = await requireClient()
+      .from("testimonials")
+      .update(input)
+      .eq("id", id)
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      console.error("testimonialQueries.update error:", error);
+      throw error;
+    }
+    return (data as DbTestimonial) ?? undefined;
+  },
+
+  remove: async (id: number): Promise<void> => {
+    const { error } = await requireClient().from("testimonials").delete().eq("id", id);
+
+    if (error) {
+      console.error("testimonialQueries.remove error:", error);
+      throw error;
+    }
+  },
+};
+

@@ -56,6 +56,28 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 /coverage/
+/e2e/
+
+# skrip & berkas sementara (debug, uji manual, hasil) — tidak ikut repo
+/_tmp/
+/_temp/
+/_scratch/
+/_check/
+/_*.mjs
+/_*.js
+_*.txt
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+*.rej
+patch.diff
+
+# log dari dev server / turbo / next
+.next/trace
+*.tsbuildinfo
+.turbo/
 
 # lab / catatan lokal (tidak ikut repo)
 /docs/

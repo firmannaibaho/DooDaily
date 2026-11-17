@@ -15,6 +15,14 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "true";
 
+  /**
+   * Tujuan setelah login berhasil, mis. `/checkout`.
+   * Hanya path internal yang diterima (diawali "/" dan bukan "//") untuk
+   * mencegah open redirect ke domain lain.
+   */
+  const rawNext = searchParams.get("next") ?? "";
+  const nextPath = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -28,7 +36,7 @@ function LoginForm() {
     if (result?.error) {
       setError("Email atau password salah");
     } else {
-      router.push("/");
+      router.push(nextPath);
       router.refresh();
     }
   };
@@ -93,7 +101,11 @@ function LoginForm() {
       <p className="mt-6 text-center text-sm text-foreground/60">
         Belum punya akun?{" "}
         <Link
-          href="/register"
+          href={
+            nextPath === "/"
+              ? "/register"
+              : `/register?next=${encodeURIComponent(nextPath)}`
+          }
           className="text-brand-blue font-bold hover:underline"
         >
           Daftar di sini

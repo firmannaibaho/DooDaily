@@ -20,12 +20,14 @@ const navLinks = [
   { name: "Coloring", href: "/coloring" },
   { name: "Playground", href: "/playground" },
   { name: "Community", href: "/community" },
+  { name: "Testimoni", href: "/testimoni" },
 ];
 
 /** Menu untuk admin: hanya yang diperlukan (bukan katalog toko). */
 const adminNavLinks = [
   { name: "Dashboard", href: "/admin" },
   { name: "Pesanan", href: "/admin/orders" },
+  { name: "Testimoni", href: "/admin/testimoni" },
   { name: "Pesan", href: "/admin/chat" },
 ];
 

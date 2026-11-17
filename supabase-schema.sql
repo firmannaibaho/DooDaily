@@ -30,6 +30,27 @@ CREATE TABLE IF NOT EXISTS public.orders (
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
--- 3. MATIKAN ROW LEVEL SECURITY (RLS) AGAR BACKEND NEXT.JS BISA BACA & TULIS
+-- 3. TABEL TESTIMONIALS (Ulasan Pembeli)
+-- `image_path` menyimpan nama berkas GAMBAR TESTIMONI yang diunggah admin.
+-- Berkasnya ada di public/testimoni/ (terpisah dari gambar shop di
+-- public/catalog/). Tanpa kolom rating dan tanpa kota; `message` opsional
+-- karena screenshot chat biasanya sudah memuat isi percakapannya.
+CREATE TABLE IF NOT EXISTS public.testimonials (
+  id BIGSERIAL PRIMARY KEY,
+  customer_name TEXT NOT NULL,
+  product_name TEXT DEFAULT '',
+  message TEXT DEFAULT '',
+  image_path TEXT NOT NULL,
+  is_published BOOLEAN NOT NULL DEFAULT TRUE,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_by BIGINT REFERENCES public.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS testimonials_published_idx
+  ON public.testimonials (is_published, sort_order DESC, created_at DESC);
+
+-- 4. MATIKAN ROW LEVEL SECURITY (RLS) AGAR BACKEND NEXT.JS BISA BACA & TULIS
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.testimonials DISABLE ROW LEVEL SECURITY;

@@ -1,17 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  /**
+   * Tujuan setelah login, mis. `/checkout`. Diteruskan ke halaman login
+   * supaya user kembali ke checkout setelah mendaftar.
+   * Hanya path internal yang diterima untuk mencegah open redirect.
+   */
+  const rawNext = searchParams.get("next") ?? "";
+  const nextPath = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +38,9 @@ export default function RegisterPage() {
         setLoading(false);
         return;
       }
-      router.push("/login?registered=true");
+      const loginParams = new URLSearchParams({ registered: "true" });
+      if (nextPath !== "/") loginParams.set("next", nextPath);
+      router.push(`/login?${loginParams.toString()}`);
     } catch {
       setError("Terjadi kesalahan jaringan");
       setLoading(false);
@@ -105,7 +116,11 @@ export default function RegisterPage() {
         <p className="mt-6 text-center text-sm text-foreground/60">
           Sudah punya akun?{" "}
           <Link
-            href="/login"
+            href={
+              nextPath === "/"
+                ? "/login"
+                : `/login?next=${encodeURIComponent(nextPath)}`
+            }
             className="text-brand-blue font-bold hover:underline"
           >
             Login di sini
@@ -113,5 +128,21 @@ export default function RegisterPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
+          <div className="w-full max-w-md bg-white rounded-3xl p-8 border-2 border-brand-blue-light text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-4 border-brand-blue border-t-transparent mx-auto" />
+          </div>
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }
