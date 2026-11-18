@@ -192,17 +192,32 @@ export default function MyOrdersPage() {
                 {/* RINCIAN BIAYA & PENGIRIMAN */}
                 <div className="mb-4 rounded-2xl border border-line bg-[#FFFBF2] p-4 text-sm space-y-1.5">
                   <div className="flex justify-between text-foreground/70 font-medium">
-                    <span>Subtotal</span>
+                    <span>Harga Keychain</span>
                     <span>{formatRupiah(order.subtotal)}</span>
                   </div>
                   <div className="flex justify-between text-foreground/70 font-medium">
                     <span>Ongkir</span>
-                    <span>{formatRupiah(order.shipping)}</span>
+                    <span className="text-brand-orange">Dihitung terpisah</span>
                   </div>
                   <div className="flex justify-between font-bold text-brand-blue pt-1.5 border-t border-line">
-                    <span>Total</span>
+                    <span>Total Keychain</span>
                     <span>{formatRupiah(order.total)}</span>
                   </div>
+                  {order.payment_proof && (
+                    <div className="pt-2 mt-2 border-t border-line/70">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-brand-blue mb-1">
+                        Bukti Pembayaran
+                      </p>
+                      <a
+                        href={`/uploads/bukti/${order.payment_proof.split("/").pop()}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs font-bold text-brand-blue underline hover:text-brand-orange"
+                      >
+                        Lihat bukti yang diunggah
+                      </a>
+                    </div>
+                  )}
                   <div className="pt-2 mt-2 border-t border-line/70 text-xs text-foreground/60 font-medium space-y-0.5">
                     <p className="text-brand-blue font-bold uppercase tracking-wider text-[10px] mb-1">
                       Dikirim ke

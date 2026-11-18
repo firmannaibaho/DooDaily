@@ -16,6 +16,7 @@ import {
   AlertCircle,
   UserPlus,
   LogIn,
+  Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-context";
@@ -32,7 +33,7 @@ interface FormData {
   notes: string;
 }
 
-const WHATSAPP_NUMBER = "6285156524928"; // Ganti dengan nomor WA Doodaily
+const WHATSAPP_NUMBER = "6282284479726"; // WhatsApp Doodaily Art
 
 /** Batas waktu permintaan simpan pesanan (ms). */
 const SAVE_ORDER_TIMEOUT_MS = 20_000;
@@ -193,6 +194,12 @@ function CheckoutForm({
   const [paymentMethod, setPaymentMethod] = useState("qris");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  /** order_id pesanan yang baru dibuat; dipakai di step 3 (unggah bukti). */
+  const [orderId, setOrderId] = useState("");
+  /** Berkas bukti pembayaran yang dipilih user di step 3. */
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [proofPreview, setProofPreview] = useState("");
+  const [proofUploading, setProofUploading] = useState(false);
   const { items, subtotal, clearCart } = useCart();
 
   /**
@@ -217,8 +224,15 @@ function CheckoutForm({
   });
   const [formErrors, setFormErrors] = useState<Partial<FormData>>({});
 
-  const shipping = 10000;
-  const total = subtotal + shipping;
+  /**
+   * ONGKIR TIDAK DIHITUNG DI SINI.
+   *
+   * Harga yang ditagihkan hanya harga keychain (subtotal). Ongkir dikonfirmasi
+   * terpisah lewat chat admin, jadi `total === subtotal` dan `shipping` selalu
+   * 0. Kolom `shipping` tetap dikirim agar skema database tidak berubah.
+   */
+  const shipping = 0;
+  const total = subtotal;
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -253,29 +267,23 @@ function CheckoutForm({
     }
   };
 
+  /**
+   * STEP 2 → 3: Simpan pesanan ke database, lalu tampilkan step 3
+   * (unggah bukti pembayaran).
+   *
+   * Pesanan sengaja dibuat SEBELUM bukti diunggah supaya bukti punya
+   * `order_id` tujuan. Kalau user batal di step 3, pesanan tetap ada dengan
+   * status `pending` dan tanpa bukti — admin bisa menagih lewat chat.
+   */
   const handlePlaceOrder = async () => {
     setIsSubmitting(true);
     setSubmitError(null);
-
-    const methodLabel =
-      paymentMethod === "qris"
-        ? "QRIS"
-        : paymentMethod === "transfer"
-          ? "Transfer Bank (BCA)"
-          : "COD (Bayar di Tempat)";
-
-    const itemLines = items
-      .map(
-        (item) =>
-          `• ${item.name}${item.customizations.length ? ` (${item.customizations.join(", ")})` : ""} x${item.quantity} = Rp ${(item.price * item.quantity).toLocaleString("id-ID")}`
-      )
-      .join("\n");
 
     // ── 1. SIMPAN PESANAN KE DATABASE ────────────────────────────────
     // Sebelumnya langkah ini tidak ada sehingga tabel `orders` selalu kosong
     // dan pesanan hanya terkirim lewat WhatsApp. order_id sekarang dibuat
     // oleh SERVER agar konsisten dengan data yang tersimpan.
-    let orderId: string;
+    let createdId: string;
     try {
       const response = await fetch("/api/orders", {
         method: "POST",
@@ -316,7 +324,7 @@ function CheckoutForm({
         return;
       }
 
-      orderId = data.order_id;
+      createdId = data.order_id;
     } catch (error) {
       const timedOut = error instanceof Error && error.name === "TimeoutError";
       setSubmitError(
@@ -328,11 +336,47 @@ function CheckoutForm({
       return;
     }
 
-    // ── 2. SUSUN PESAN WHATSAPP (pakai order_id dari server) ─────────
+    setOrderId(createdId);
+    setIsSubmitting(false);
+
+    // COD tidak butuh bukti bayar → langsung selesaikan.
+    if (paymentMethod === "cod") {
+      finalizeOrder(createdId);
+      return;
+    }
+
+    // QRIS / transfer → minta bukti pembayaran di step 3.
+    setStep(3);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  /**
+   * STEP 3 → SELESAI: finalisasi pesanan.
+   *
+   * Mengosongkan keranjang, lalu pindah ke /order-success. Yang dikirim lewat
+   * URL hanya `orderId` (dan tautan WhatsApp): nama, metode bayar, dan total
+   * sengaja TIDAK dimasukkan karena halaman sukses mengambilnya dari server —
+   * mencegah data dipalsukan lewat URL.
+   */
+  const finalizeOrder = (id: string) => {
+    const methodLabel =
+      paymentMethod === "qris"
+        ? "QRIS"
+        : paymentMethod === "transfer"
+          ? "Transfer Bank"
+          : "COD (Bayar di Tempat)";
+
+    const itemLines = items
+      .map(
+        (item) =>
+          `• ${item.name}${item.customizations.length ? ` (${item.customizations.join(", ")})` : ""} x${item.quantity} = Rp ${(item.price * item.quantity).toLocaleString("id-ID")}`
+      )
+      .join("\n");
+
     const message =
       `🛍️ *PESANAN BARU — Doodaily Art*\n` +
       `━━━━━━━━━━━━━━━━━\n` +
-      `*ID Pesanan:* ${orderId}\n\n` +
+      `*ID Pesanan:* ${id}\n\n` +
       `👤 *Data Pembeli*\n` +
       `Nama: ${form.firstName} ${form.lastName}\n` +
       `Email: ${form.email}\n` +
@@ -342,28 +386,91 @@ function CheckoutForm({
       `\n🛒 *Detail Pesanan*\n` +
       `${itemLines}\n\n` +
       `━━━━━━━━━━━━━━━━━\n` +
-      `Subtotal: Rp ${subtotal.toLocaleString("id-ID")}\n` +
-      `Ongkir: Rp ${shipping.toLocaleString("id-ID")}\n` +
-      `*Total: Rp ${total.toLocaleString("id-ID")}*\n\n` +
+      `Total (harga keychain): Rp ${total.toLocaleString("id-ID")}\n` +
+      `_Ongkir dihitung terpisah — mohon info ongkirnya kak_\n\n` +
       `💳 *Metode Bayar:* ${methodLabel}\n` +
       `━━━━━━━━━━━━━━━━━\n` +
       `Mohon konfirmasi pesanan ini ya kak! 🙏`;
 
     const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
 
-    // ── 3. SELESAIKAN ────────────────────────────────────────────────
     clearCart();
 
-    // Yang dikirim ke /order-success hanya order_id (dan tautan WhatsApp).
-    // Nama, metode bayar, dan total sengaja TIDAK dimasukkan karena halaman
-    // sukses mengambilnya dari server — mencegah data dipalsukan lewat URL.
-    const successParams = new URLSearchParams({ orderId });
+    const successParams = new URLSearchParams({ orderId: id });
     if (waUrl) successParams.set("wa", waUrl);
 
     router.push(`/order-success?${successParams.toString()}`);
   };
 
-  if (items.length === 0 && !isSubmitting) {
+  /** Pilih berkas bukti pembayaran (step 3). */
+  const handleProofChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const picked = e.target.files?.[0] ?? null;
+    if (!picked) return;
+
+    if (picked.size > 5 * 1024 * 1024) {
+      setSubmitError("Ukuran bukti pembayaran maksimal 5 MB.");
+      e.target.value = "";
+      return;
+    }
+    if (!/^image\/(jpeg|png|webp|gif)$/.test(picked.type)) {
+      setSubmitError("Format bukti harus JPG, PNG, WEBP, atau GIF.");
+      e.target.value = "";
+      return;
+    }
+
+    setSubmitError(null);
+    setProofFile(picked);
+    setProofPreview(URL.createObjectURL(picked));
+  };
+
+  /**
+   * STEP 3: unggah bukti pembayaran lalu finalisasi.
+   *
+   * Bukti diunggah ke `/api/orders/<order_id>/bukti` (server memeriksa bahwa
+   * pesanan ini memang milik user yang login). Kalau unggahan gagal, pesanan
+   * tetap tersimpan sebagai `pending` dan user bisa mencoba lagi.
+   */
+  const handleUploadProofAndFinish = async () => {
+    if (!orderId) return;
+
+    if (!proofFile) {
+      setSubmitError("Pilih gambar bukti pembayaran terlebih dahulu.");
+      return;
+    }
+
+    setSubmitError(null);
+    setProofUploading(true);
+    try {
+      const body = new FormData();
+      body.set("image", proofFile);
+
+      const response = await fetch(
+        `/api/orders/${encodeURIComponent(orderId)}/bukti`,
+        { method: "POST", body, signal: AbortSignal.timeout(30_000) }
+      );
+      const data = (await response.json().catch(() => null)) as
+        | { message?: string }
+        | null;
+
+      if (!response.ok) {
+        setSubmitError(data?.message || "Gagal mengunggah bukti pembayaran.");
+        return;
+      }
+
+      finalizeOrder(orderId);
+    } catch (error) {
+      const timedOut = error instanceof Error && error.name === "TimeoutError";
+      setSubmitError(
+        timedOut
+          ? "Unggah terlalu lama. Coba gambar yang lebih kecil."
+          : "Tidak dapat menghubungi server. Periksa koneksi Anda."
+      );
+    } finally {
+      setProofUploading(false);
+    }
+  };
+
+  if (items.length === 0 && !isSubmitting && step !== 3) {
     return (
       <div className="container mx-auto px-4 py-24 max-w-4xl min-h-[70vh] flex flex-col items-center justify-center text-center">
         <h1 className="font-display text-4xl text-brand-blue mb-4">
@@ -439,6 +546,32 @@ function CheckoutForm({
               )}
             >
               Pembayaran
+            </span>
+          </div>
+          <div
+            className={cn(
+              "flex-1 h-0.5 mx-3 rounded-full transition-all",
+              step >= 3 ? "bg-green-500" : "bg-gray-200"
+            )}
+          />
+          <div className="flex items-center gap-2">
+            <div
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm transition-all",
+                step >= 3
+                  ? "bg-green-500 text-white"
+                  : "bg-gray-200 text-gray-400"
+              )}
+            >
+              3
+            </div>
+            <span
+              className={cn(
+                "text-sm font-bold",
+                step >= 3 ? "text-green-600" : "text-gray-400"
+              )}
+            >
+              Bukti Bayar
             </span>
           </div>
         </div>
@@ -760,12 +893,166 @@ function CheckoutForm({
                 </Button>
                 <p className="text-center text-xs text-foreground/50 font-medium mt-4 flex items-center justify-center gap-2">
                   <Smartphone className="w-3.5 h-3.5" />
-                  Pesanan akan langsung dikirim via WhatsApp untuk konfirmasi
+                  {paymentMethod === "cod"
+                    ? "Pesanan langsung dibuat, bayar tunai saat barang tiba"
+                    : "Lanjut ke unggah bukti pembayaran setelah ini"}
                 </p>
                 <div className="mt-4">
                   <ChatContextButton kind="cart" className="w-full" variant="ghost" />
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Step 3: Bukti Pembayaran (QRIS & Transfer) */}
+        <div
+          className={cn(
+            "bg-white rounded-3xl p-6 md:p-8 border-2 transition-all duration-300",
+            step === 3
+              ? "border-green-400"
+              : "border-gray-100 opacity-40 pointer-events-none"
+          )}
+        >
+          <div className="flex items-center gap-4 mb-6">
+            <span
+              className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm",
+                step === 3 ? "bg-green-500 text-white" : "bg-gray-200 text-gray-400"
+              )}
+            >
+              3
+            </span>
+            <h2 className="font-display text-2xl text-foreground">Bukti Pembayaran</h2>
+          </div>
+
+          {step === 3 && (
+            <div className="space-y-5">
+              <div className="rounded-2xl bg-brand-blue-light/20 border border-brand-blue-light p-4">
+                <p className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-1">
+                  ID Pesanan
+                </p>
+                <p className="font-mono font-bold text-brand-blue break-all">{orderId}</p>
+                <p className="text-sm text-foreground/70 font-medium mt-2">
+                  Total yang harus dibayar:{" "}
+                  <strong className="text-brand-orange text-base">
+                    Rp {total.toLocaleString("id-ID")}
+                  </strong>
+                </p>
+                <p className="text-xs text-foreground/50 font-medium mt-1">
+                  Harga keychain saja — ongkir menyusul lewat chat admin.
+                </p>
+              </div>
+
+              {/* Instruksi pembayaran */}
+              {paymentMethod === "qris" ? (
+                <div className="rounded-2xl border-2 border-brand-orange/30 bg-brand-orange-light/20 p-4">
+                  <p className="font-bold text-foreground mb-3">
+                    Scan QRIS berikut, lalu unggah bukti bayarnya
+                  </p>
+                  <div className="flex justify-center bg-white rounded-xl p-3">
+                    <Image
+                      src="/qris.jpg"
+                      alt="Kode QRIS Doodaily Art"
+                      width={260}
+                      height={260}
+                      className="rounded-lg"
+                    />
+                  </div>
+                  <p className="text-xs text-foreground/60 font-medium mt-3 text-center">
+                    Nominal: Rp {total.toLocaleString("id-ID")}
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-2xl border-2 border-brand-blue-light bg-white p-4">
+                  <p className="text-xs font-bold text-foreground/50 uppercase tracking-widest mb-2">
+                    Rekening Tujuan
+                  </p>
+                  <p className="font-bold text-foreground">BCA — 1234567890</p>
+                  <p className="text-sm text-foreground/70 font-medium">a.n. Doodaily Art</p>
+                  <p className="text-sm text-foreground/70 font-medium mt-2">
+                    Nominal:{" "}
+                    <strong className="text-brand-blue">
+                      Rp {total.toLocaleString("id-ID")}
+                    </strong>
+                  </p>
+                </div>
+              )}
+
+              {/* Unggah bukti */}
+              <div>
+                <label className="block text-xs font-bold text-foreground/70 mb-2 uppercase tracking-wide">
+                  Unggah Bukti Pembayaran <span className="text-red-400">*</span>
+                </label>
+                <input
+                  id="bukti-input"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={handleProofChange}
+                  className="hidden"
+                />
+                <div className="flex flex-col sm:flex-row gap-4 items-start">
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        (document.getElementById("bukti-input") as HTMLInputElement)?.click()
+                      }
+                      className="rounded-xl gap-2 h-12"
+                    >
+                      <Upload className="w-4 h-4" />
+                      {proofPreview ? "Ganti Bukti" : "Pilih Bukti"}
+                    </Button>
+                    <p className="text-xs text-foreground/50 font-medium">
+                      JPG, PNG, WEBP, atau GIF · maksimal 5 MB.
+                    </p>
+                    {proofFile && (
+                      <p className="text-xs text-brand-blue font-bold truncate max-w-[200px]">
+                        {proofFile.name} · {(proofFile.size / 1024).toFixed(0)} KB
+                      </p>
+                    )}
+                  </div>
+                  {proofPreview && (
+                    <div className="relative w-32 h-32 rounded-xl overflow-hidden border-2 border-green-400 bg-[#FFFBF2] shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={proofPreview}
+                        alt="Pratinjau bukti pembayaran"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {submitError && (
+                <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                  <p className="text-sm font-bold text-red-700 leading-snug">{submitError}</p>
+                </div>
+              )}
+
+              <Button
+                className="w-full h-16 text-xl rounded-full gap-3 bg-green-500 hover:bg-green-600 shadow-[0_6px_0_0_#166534] hover:shadow-[0_2px_0_0_#166534] hover:translate-y-[4px] transition-all"
+                onClick={handleUploadProofAndFinish}
+                disabled={proofUploading}
+              >
+                {proofUploading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" /> Mengunggah...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" /> Unggah &amp; Finalisasi
+                  </>
+                )}
+              </Button>
+
+              <p className="text-center text-xs text-foreground/50 font-medium">
+                Pesanan sudah tersimpan. Kalau kamu menutup halaman ini, bukti
+                pembayaran bisa dikirim nanti lewat chat admin.
+              </p>
             </div>
           )}
         </div>
@@ -815,21 +1102,24 @@ function CheckoutForm({
 
         <div className="space-y-3 text-sm font-medium text-foreground/70 mb-6">
           <div className="flex justify-between">
-            <span>Subtotal</span>
+            <span>Harga Keychain</span>
             <span className="font-bold text-foreground">
               Rp {subtotal.toLocaleString("id-ID")}
             </span>
           </div>
           <div className="flex justify-between">
-            <span>Ongkir (Reguler)</span>
-            <span className="font-bold text-foreground">
-              Rp {shipping.toLocaleString("id-ID")}
-            </span>
+            <span>Ongkir</span>
+            <span className="font-bold text-brand-orange">Dihitung terpisah</span>
           </div>
         </div>
 
+        <div className="rounded-2xl bg-white border border-brand-blue-light p-3 mb-6 text-xs text-foreground/70 font-medium leading-relaxed">
+          Harga di atas hanya untuk keychain. Ongkir menyesuaikan kota tujuan —
+          chat admin untuk info ongkir.
+        </div>
+
         <div className="flex justify-between items-end border-t-2 border-brand-blue-light pt-6">
-          <span className="font-bold text-foreground">Total</span>
+          <span className="font-bold text-foreground">Total Keychain</span>
           <span className="font-display text-3xl text-brand-orange">
             Rp {total.toLocaleString("id-ID")}
           </span>

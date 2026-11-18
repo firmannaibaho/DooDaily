@@ -31,9 +31,13 @@ export interface DbOrder {
   payment_method: string;
   items_json: string;
   subtotal: number;
+  /** Ongkir TIDAK dihitung di aplikasi — lihat keterangan ongkir terpisah. */
   shipping: number;
+  /** `total` = subtotal (harga keychain saja), tanpa ongkir. */
   total: number;
   status: "pending" | "confirmed" | "processing" | "shipped" | "done" | "cancelled";
+  /** Nama berkas bukti pembayaran di public/uploads/bukti/. */
+  payment_proof?: string;
   result_image?: string;
   admin_notes?: string;
   created_at: string;
@@ -167,6 +171,19 @@ export const orderQueries = {
       throw error;
     }
     return Number(data.id);
+  },
+
+  /** Simpan nama berkas bukti pembayaran untuk satu pesanan. */
+  updatePaymentProof: async (orderId: string, paymentProof: string): Promise<void> => {
+    const { error } = await requireClient()
+      .from("orders")
+      .update({ payment_proof: paymentProof })
+      .eq("order_id", orderId);
+
+    if (error) {
+      console.error("orderQueries.updatePaymentProof error:", error);
+      throw error;
+    }
   },
 
   findAll: async (): Promise<DbOrder[]> => {

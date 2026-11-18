@@ -22,9 +22,10 @@ CREATE TABLE IF NOT EXISTS public.orders (
   payment_method TEXT NOT NULL,
   items_json TEXT NOT NULL,
   subtotal NUMERIC NOT NULL,
-  shipping NUMERIC NOT NULL DEFAULT 10000,
+  shipping NUMERIC NOT NULL DEFAULT 0,
   total NUMERIC NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
+  payment_proof TEXT DEFAULT '',
   result_image TEXT DEFAULT '',
   admin_notes TEXT DEFAULT '',
   created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())

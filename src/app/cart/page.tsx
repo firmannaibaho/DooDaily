@@ -123,23 +123,27 @@ export default function CartPage() {
 
           <div className="space-y-4 text-sm font-medium text-foreground/70 mb-6">
             <div className="flex justify-between">
-              <span>Subtotal</span>
+              <span>Harga Keychain</span>
               <span className="font-bold text-foreground">
                 Rp {subtotal.toLocaleString("id-ID")}
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Shipping</span>
-              <span className="text-brand-orange">Calculated at checkout</span>
+              <span>Ongkir</span>
+              <span className="text-brand-orange">Dihitung terpisah</span>
             </div>
           </div>
 
           <div className="border-t-2 border-dashed border-brand-blue-light pt-6 mb-8 flex justify-between items-end">
-            <span className="font-bold text-foreground">Total</span>
+            <span className="font-bold text-foreground">Total Keychain</span>
             <span className="font-display text-3xl text-brand-blue">
               Rp {subtotal.toLocaleString("id-ID")}
             </span>
           </div>
+
+          <p className="text-xs text-foreground/50 font-medium mb-6">
+            Belum termasuk ongkir — chat admin untuk info ongkir ke kotamu.
+          </p>
 
           {isAdmin ? (
             <div className="space-y-3">
