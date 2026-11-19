@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { testimonialQueries } from "@/lib/db";
 import {
-  saveTestimoniImage,
-  deleteTestimoniImage,
-  fileNameOf,
-  testimonialImageUrl,
+  saveUpload,
+  deleteUpload,
+  uploadUrl,
   MAX_IMAGE_BYTES,
-} from "@/lib/testimonial-storage";
+} from "@/lib/upload-storage";
 
 /** Hanya admin. Mengembalikan userId atau null bila tidak berhak. */
 async function requireAdminId(): Promise<number | null> {
@@ -104,9 +103,9 @@ export async function PATCH(
   // Ganti gambar bila ada berkas baru.
   if (newImageFile) {
     try {
-      const saved = await saveTestimoniImage(newImageFile, "testimoni");
-      updates.image_path = saved.fileName;
-      if (existing.image_path) await deleteTestimoniImage(fileNameOf(existing.image_path));
+      const saved = await saveUpload(newImageFile, "testimoni");
+      updates.image_path = saved.path;
+      if (existing.image_path) await deleteUpload(existing.image_path, "testimoni");
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Gagal menyimpan gambar.";
@@ -119,7 +118,7 @@ export async function PATCH(
     return NextResponse.json({
       message: "Testimoni diperbarui.",
       testimonial: updated
-        ? { ...updated, image_url: testimonialImageUrl(updated.image_path) }
+        ? { ...updated, image_url: uploadUrl(updated.image_path, "testimoni") }
         : null,
     });
   } catch (error) {
@@ -154,7 +153,7 @@ export async function DELETE(
   try {
     await testimonialQueries.remove(id);
     // Hapus berkas setelah baris database benar-benar terhapus.
-    if (existing.image_path) await deleteTestimoniImage(fileNameOf(existing.image_path));
+    if (existing.image_path) await deleteUpload(existing.image_path, "testimoni");
     return NextResponse.json({ message: "Testimoni dihapus." });
   } catch (error) {
     console.error("Delete testimonial error:", error);

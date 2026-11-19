@@ -1,26 +1,29 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { supabaseAdmin } from "./supabase";
 
 /**
- * Penyimpanan berkas UNGGAHAN PENGGUNA (bukan aset desain seperti
- * `public/catalog/`). Ada dua jenis:
+ * Penyimpanan berkas UNGGAHAN (bukti bayar, gambar referensi, gambar testimoni).
  *
- *   bukti/      → bukti pembayaran pesanan (QRIS / transfer bank)
- *   referensi/  → gambar referensi untuk request custom keychain
+ * ⚠️ KENAPA SUPABASE STORAGE, BUKAN `public/`:
+ * Serverless (Vercel) memasang filesystem sebagai READ-ONLY sehingga
+ * `fs.mkdir('public/...')` gagal dengan ENOENT/EROFS di produksi. Karena itu
+ * berkas disimpan di Supabase Storage, dan database hanya menyimpan PATH
+ * relatif (`bukti/xxx.jpg`) — URL publik dibentuk saat dibaca, sehingga
+ * env/domain bisa berubah tanpa migrasi data.
  *
- * Keduanya sengaja dipisah dari `public/testimoni/` supaya mudah dibedakan
- * dan bisa dibersihkan per jenis tanpa menyentuh yang lain.
+ * Sebagai kemudahan pengembangan lokal, bila Storage tidak tersedia
+ * (tanpa SERVICE ROLE KEY) berkas ditulis ke `public/uploads/` dan disajikan
+ * lewat path `/uploads/...`.
  */
-export const UPLOAD_ROOT = path.join(process.cwd(), "public", "uploads");
+export const UPLOAD_BUCKET = process.env.SUPABASE_UPLOAD_BUCKET?.trim() || "uploads";
 
-export const BUKTI_DIR = path.join(UPLOAD_ROOT, "bukti");
-export const REFERENSI_DIR = path.join(UPLOAD_ROOT, "referensi");
+export type UploadFolder = "bukti" | "referensi" | "testimoni";
 
-/** Prefix URL publik, mis. `/uploads/bukti/...`. */
-export const UPLOAD_URL_PREFIX = "/uploads";
+const LOCAL_ROOT = path.join(process.cwd(), "public", "uploads");
 
-/** Batas ukuran berkas: 5 MB. Cukup untuk foto struk / screenshot referensi. */
+/** Batas ukuran berkas: 5 MB. Cukup untuk foto struk / screenshot. */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /**
@@ -55,90 +58,143 @@ const ALLOWED_TYPES: { ext: string; mime: string; test: (b: Uint8Array) => boole
 ];
 
 export interface SavedUpload {
-  /** Nama berkas saja, disimpan di kolom database. */
-  fileName: string;
-  /** URL publik siap pakai, mis. `/uploads/bukti/bukti-....jpg`. */
+  /** Path relatif dalam bucket, mis. `bukti/bukti-123-abc.jpg`. Ini disimpan di DB. */
+  path: string;
+  /** URL publik siap pakai (Storage di produksi, `/uploads/...` saat lokal). */
   url: string;
   bytes: number;
 }
 
-/**
- * Simpan berkas unggahan ke subfolder `public/uploads/<folder>/`.
- *
- * Nama berkas dibuat sendiri (`<prefix>-<timestamp>-<uuid8>.<ext>`) sehingga
- * nama dari browser tidak pernah dipakai langsung — mencegah path traversal
- * (`../../`), tabrakan nama, dan nama berkas berisi karakter aneh.
- */
-export async function saveUpload(
-  file: File,
-  folder: "bukti" | "referensi"
-): Promise<SavedUpload> {
-  if (file.size === 0) {
-    throw new Error("Berkas kosong.");
-  }
+/** Ambil nama berkas saja (anti path traversal). */
+function safeName(fileName: string): string {
+  const base = path.basename(fileName.trim());
+  if (!base || base === "." || base === "..") return "";
+  return base;
+}
+
+/** Validasi isi berkas & kembalikan buffer + tipe yang sah. */
+async function readValidImage(file: File): Promise<{ buffer: Buffer; ext: string; mime: string }> {
+  if (file.size === 0) throw new Error("Berkas kosong.");
   if (file.size > MAX_IMAGE_BYTES) {
-    throw new Error(
-      `Ukuran gambar maksimal ${Math.round(MAX_IMAGE_BYTES / 1024 / 1024)} MB.`
-    );
+    throw new Error(`Ukuran gambar maksimal ${Math.round(MAX_IMAGE_BYTES / 1024 / 1024)} MB.`);
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const head = new Uint8Array(buffer.subarray(0, 12));
-
   const match = ALLOWED_TYPES.find((t) => t.test(head));
-  if (!match) {
-    throw new Error("Format gambar harus JPG, PNG, WEBP, atau GIF.");
-  }
+  if (!match) throw new Error("Format gambar harus JPG, PNG, WEBP, atau GIF.");
+
+  return { buffer, ext: match.ext, mime: match.mime };
+}
+
+/** Base URL publik Storage, mis. `https://xxx.supabase.co/storage/v1/object/public/uploads`. */
+function storagePublicBase(): string {
+  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/+$/, "");
+  return base ? `${base}/storage/v1/object/public/${UPLOAD_BUCKET}` : "";
+}
+
+/** Apakah Supabase Storage siap dipakai (butuh SERVICE ROLE KEY). */
+export function isStorageConfigured(): boolean {
+  return Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) && Boolean(storagePublicBase());
+}
+
+/**
+ * Simpan berkas unggahan.
+ *
+ * Nama berkas dibuat sendiri (`<folder>-<timestamp>-<uuid8>.<ext>`) sehingga
+ * nama dari browser tidak pernah dipakai langsung — mencegah path traversal
+ * (`../../`), tabrakan nama, dan nama berkas berisi karakter aneh.
+ */
+export async function saveUpload(file: File, folder: UploadFolder): Promise<SavedUpload> {
+  const { buffer, ext, mime } = await readValidImage(file);
 
   const stamp = Date.now();
   const rand = randomUUID().replace(/-/g, "").slice(0, 8);
-  const fileName = `${folder}-${stamp}-${rand}.${match.ext}`;
+  const objectPath = `${folder}/${folder}-${stamp}-${rand}.${ext}`;
 
-  const dir = path.join(UPLOAD_ROOT, folder);
+  const client = supabaseAdmin();
+  const publicBase = storagePublicBase();
+
+  // ── Jalur utama: Supabase Storage ──
+  if (client && publicBase) {
+    const { error } = await client.storage
+      .from(UPLOAD_BUCKET)
+      .upload(objectPath, buffer, { contentType: mime, upsert: false });
+
+    if (error) {
+      const hint = /bucket/i.test(error.message)
+        ? ` Bucket "${UPLOAD_BUCKET}" belum ada di Supabase Storage (buat & set Public).`
+        : ` ${error.message}`;
+      throw new Error(`Gagal mengunggah berkas ke storage.${hint}`);
+    }
+
+    return { path: objectPath, url: `${publicBase}/${objectPath}`, bytes: buffer.length };
+  }
+
+  // ── Cadangan: filesystem lokal (hanya pengembangan) ──
+  if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Penyimpanan berkas belum dikonfigurasi. Isi SUPABASE_SERVICE_ROLE_KEY agar unggahan disimpan ke Supabase Storage."
+    );
+  }
+
+  const dir = path.join(LOCAL_ROOT, folder);
   await fs.mkdir(dir, { recursive: true });
+  const fileName = path.basename(objectPath);
   await fs.writeFile(path.join(dir, fileName), buffer);
 
-  return {
-    fileName,
-    url: `${UPLOAD_URL_PREFIX}/${folder}/${fileName}`,
-    bytes: buffer.length,
-  };
+  return { path: objectPath, url: `/uploads/${objectPath}`, bytes: buffer.length };
 }
 
 /**
  * Hapus berkas unggahan.
  *
- * Hanya nama berkas yang diterima, dan `path.basename` dipakai lagi sebagai
- * pengaman terakhir agar tidak ada yang bisa menghapus berkas di luar folder
- * unggahan.
+ * Menerima path relatif (`bukti/xxx.jpg`) maupun nama berkas lama (`xxx.jpg`)
+ * — nama berkas diperlakukan sebagai anggota `folder`. Diam-diam berhasil
+ * bila berkas memang sudah tidak ada.
  */
-export async function deleteUpload(
-  fileName: string,
-  folder: "bukti" | "referensi"
-): Promise<void> {
-  const safe = path.basename(fileName.trim());
-  if (!safe || safe === "." || safe === "..") return;
+export async function deleteUpload(value: string, folder: UploadFolder): Promise<void> {
+  const clean = value.split("?")[0].replace(/^\/+/, "");
+  if (!clean || clean.includes("..")) return;
+
+  const objectPath = clean.includes("/") ? clean : `${folder}/${safeName(clean)}`;
+  if (!objectPath.includes("/")) return;
+
+  const client = supabaseAdmin();
+  if (client && storagePublicBase()) {
+    await client.storage.from(UPLOAD_BUCKET).remove([objectPath]).catch(() => {});
+    return;
+  }
 
   try {
-    await fs.unlink(path.join(UPLOAD_ROOT, folder, safe));
+    await fs.unlink(path.join(LOCAL_ROOT, objectPath));
   } catch {
     /* Berkas mungkin sudah tidak ada — anggap berhasil. */
   }
 }
 
-/** Ambil nama berkas dari nilai yang mungkin berupa URL penuh. */
+/** Ambil nama berkas dari nilai yang mungkin URL penuh atau path. */
 export function fileNameOf(value: string): string {
   const clean = value.split("?")[0].split("/").pop() ?? "";
-  return path.basename(clean);
+  return safeName(clean);
 }
 
 /**
  * Ubah nilai kolom database menjadi URL publik.
- * Mendukung nilai lama yang mungkin masih berupa URL penuh atau path absolut.
+ *
+ * Menerima:
+ *   - path relatif  → `bukti/xxx.jpg`        → URL publik Storage
+ *   - nama berkas   → `xxx.jpg` (data lama)  → dicari di `folder/`
+ *   - URL penuh     → dikembalikan apa adanya (kompatibilitas data lama)
+ *   - path absolut  → `/uploads/...`         → dikembalikan apa adanya
  */
-export function uploadUrl(value: string, folder: "bukti" | "referensi"): string {
+export function uploadUrl(value: string, folder: UploadFolder): string {
   if (!value) return "";
   if (/^https?:\/\//i.test(value) || value.startsWith("data:")) return value;
   if (value.startsWith("/")) return value;
-  return `${UPLOAD_URL_PREFIX}/${folder}/${value}`;
+
+  const objectPath = value.includes("/") ? value : `${folder}/${fileNameOf(value)}`;
+  const base = storagePublicBase();
+  return base ? `${base}/${objectPath}` : `/uploads/${objectPath}`;
 }
+

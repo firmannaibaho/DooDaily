@@ -392,7 +392,7 @@ export default function AdminTestimoniPage() {
                 <img
                   src={preview}
                   alt="Pratinjau gambar testimoni"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain p-1"
                 />
               </div>
             ) : (
@@ -476,7 +476,7 @@ export default function AdminTestimoniPage() {
                       alt={`Gambar testimoni ${t.customer_name}`}
                       fill
                       sizes="96px"
-                      className="object-cover"
+                      className="object-contain p-1"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400 font-medium text-center px-1">

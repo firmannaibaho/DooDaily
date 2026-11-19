@@ -22,7 +22,6 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 
 const STATUSES = ["pending", "confirmed", "processing", "shipped", "done", "cancelled"];
 
@@ -44,6 +43,18 @@ const statusLabels: Record<string, string> = {
   cancelled: "Dibatalkan",
 };
 
+/** URL gambar bukti bayar — mendukung path Storage maupun data lama. */
+function proofUrl(value?: string): string {
+  if (!value) return "";
+  if (/^https?:\/\//i.test(value) || value.startsWith("data:") || value.startsWith("/")) {
+    return value;
+  }
+  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/+$/, "");
+  const bucket = process.env.NEXT_PUBLIC_UPLOAD_BUCKET || "uploads";
+  const path = value.includes("/") ? value : `bukti/${value.split("/").pop()}`;
+  return base ? `${base}/storage/v1/object/public/${bucket}/${path}` : `/uploads/${path}`;
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,9 +66,40 @@ export default function AdminOrdersPage() {
   const [savingProof, setSavingProof] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchOrders();
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      try {
+        const res = await fetch("/api/orders");
+        const data = await res.json();
+        const list = data.orders || [];
+        if (cancelled) return;
+        setOrders(list);
+
+        const initialProof: Record<string, { image: string; notes: string }> = {};
+        list.forEach((o: any) => {
+          initialProof[o.order_id] = {
+            image: o.result_image || "",
+            notes: o.admin_notes || "",
+          };
+        });
+        setEditProof(initialProof);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  const toggleExpand = (id: string) => {
+    setExpandedOrders((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  /** Muat ulang daftar pesanan (tombol "Segarkan"). */
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -66,7 +108,6 @@ export default function AdminOrdersPage() {
       const list = data.orders || [];
       setOrders(list);
 
-      // Inisialisasi state upload proof
       const initialProof: Record<string, { image: string; notes: string }> = {};
       list.forEach((o: any) => {
         initialProof[o.order_id] = {
@@ -80,10 +121,6 @@ export default function AdminOrdersPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const toggleExpand = (id: string) => {
-    setExpandedOrders((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   const updateStatus = async (orderId: string, newStatus: string) => {
@@ -342,8 +379,15 @@ export default function AdminOrdersPage() {
 
                     <div className="flex items-center gap-2">
                       <Link
+                        href={`/admin/orders/${encodeURIComponent(order.order_id)}`}
+                        title="Lihat detail lengkap pesanan (alamat, bukti bayar, instruksi)"
+                        className="inline-flex items-center gap-1.5 bg-brand-orange hover:bg-[#E08C28] text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm hover:scale-105"
+                      >
+                        <ExternalLink className="w-4 h-4" /> Detail
+                      </Link>
+                      <Link
                         href={`/admin/chat?order=${encodeURIComponent(order.order_id)}`}
-                        title="Chat dengan pembeli soal pesanan ini"
+                        title="Buka percakapan pembeli soal pesanan ini"
                         className="inline-flex items-center gap-1.5 bg-brand-blue hover:bg-[#3A649E] text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm hover:scale-105"
                       >
                         <MessageSquareHeart className="w-4 h-4" /> Chat
@@ -384,6 +428,28 @@ export default function AdminOrdersPage() {
                       </div>
                     )}
 
+                    {/* Bukti Pembayaran */}
+                    {order.payment_proof && (
+                      <div className="bg-green-50/70 border border-green-200 rounded-2xl p-3">
+                        <span className="text-xs font-bold text-green-800 block mb-2">
+                          Bukti Pembayaran:
+                        </span>
+                        <a
+                          href={proofUrl(order.payment_proof)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={proofUrl(order.payment_proof)}
+                            alt={`Bukti pembayaran ${order.order_id}`}
+                            className="max-h-40 rounded-lg border border-green-300 object-contain hover:opacity-80 transition-opacity"
+                          />
+                        </a>
+                      </div>
+                    )}
+
                     {/* Ordered Items & Custom Keychain Instructions */}
                     <div>
                       <h4 className="text-xs font-bold text-foreground/50 uppercase tracking-wider mb-2.5">
@@ -418,31 +484,51 @@ export default function AdminOrdersPage() {
                                   </span>
                                   <div className="flex flex-wrap gap-1.5">
                                     {item.customizations.map((c: string, cIdx: number) => {
-                                      const isInstruction = c.toLowerCase().includes("instruksi khusus");
-                                      const isLink = c.toLowerCase().includes("link referensi");
+                                      const lower = c.toLowerCase();
+                                      const isInstruction = lower.startsWith("instruksi");
+                                      const isImage = lower.startsWith("gambar referensi");
+                                      const isLink = lower.startsWith("link referensi");
+                                      const value = c.includes(": ") ? c.slice(c.indexOf(": ") + 2).trim() : "";
+
                                       return (
                                         <div
                                           key={cIdx}
                                           className={`text-xs px-3 py-1.5 rounded-xl font-medium ${
                                             isInstruction
                                               ? "bg-amber-100 text-amber-900 font-bold border border-amber-300 w-full"
-                                              : isLink
-                                              ? "bg-blue-100 text-blue-900 font-bold border border-blue-300 w-full"
-                                              : "bg-white text-foreground/80 border border-gray-200"
+                                              : isImage
+                                                ? "bg-white border border-gray-200 w-full"
+                                                : isLink
+                                                  ? "bg-blue-100 text-blue-900 font-bold border border-blue-300 w-full"
+                                                  : "bg-white text-foreground/80 border border-gray-200"
                                           }`}
                                         >
                                           {isLink ? (
-                                            <div className="flex items-center justify-between gap-2">
-                                              <span>{c}</span>
+                                            <span className="flex items-center justify-between gap-2">
+                                              <span className="truncate">{value || c}</span>
                                               <a
-                                                href={c.replace("Link Referensi/Foto: ", "").trim()}
+                                                href={value}
                                                 target="_blank"
                                                 rel="noreferrer"
-                                                className="text-blue-600 hover:underline flex items-center gap-1 text-[11px]"
+                                                className="text-blue-600 hover:underline flex items-center gap-1 text-[11px] shrink-0"
                                               >
                                                 Buka Link <ExternalLink className="w-3 h-3" />
                                               </a>
-                                            </div>
+                                            </span>
+                                          ) : isImage ? (
+                                            <span className="flex flex-col gap-1.5">
+                                              <span className="text-[11px] font-bold text-brand-blue">
+                                                Gambar Referensi
+                                              </span>
+                                              <a href={value} target="_blank" rel="noreferrer">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img
+                                                  src={value}
+                                                  alt="Gambar referensi custom"
+                                                  className="max-h-40 rounded-lg border border-gray-200 object-contain hover:opacity-80 transition-opacity"
+                                                />
+                                              </a>
+                                            </span>
                                           ) : (
                                             c
                                           )}

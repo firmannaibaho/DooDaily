@@ -63,13 +63,33 @@ function AdminChatContent() {
   const [showListOnMobile, setShowListOnMobile] = useState(true);
   const searchParams = useSearchParams();
   const orderFromQuery = searchParams.get("order");
+  const threadFromQuery = searchParams.get("thread");
+
+  /**
+   * Buka thread langsung dari `?thread=<id>`.
+   *
+   * Dipakai tombol "Chat" pada pesanan admin yang sudah memastikan thread ada
+   * lebih dulu (POST /api/chat/admin/order-thread). Berlaku juga saat thread
+   * baru dibuat sehingga belum muncul di daftar `threads` pada render awal.
+   */
+  useEffect(() => {
+    if (!threadFromQuery || thread) return;
+    const id = Number(threadFromQuery);
+    if (!Number.isInteger(id) || id <= 0) return;
+
+    const timer = setTimeout(() => {
+      setShowListOnMobile(false);
+      void selectThread(id);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [threadFromQuery, thread, selectThread]);
 
   // Buka percakapan pertama otomatis (desktop).
   useEffect(() => {
-    if (thread || threads.length === 0) return;
+    if (thread || threadFromQuery || threads.length === 0) return;
     const id = setTimeout(() => void selectThread(threads[0].id), 0);
     return () => clearTimeout(id);
-  }, [thread, threads, selectThread]);
+  }, [thread, threadFromQuery, threads, selectThread]);
 
   // Datang dari /admin/orders?order=DDL-xxx → lompat ke percakapan itu.
   useEffect(() => {
@@ -221,7 +241,17 @@ function AdminChatContent() {
                     {CHAT_KIND_META[thread.kind].icon} {thread.subject || "Percakapan"}
                   </p>
                   <p className="text-[11px] font-medium text-foreground/45 truncate">
-                    {thread.order_id ? `Pesanan ${thread.order_id}` : `Thread #${thread.id}`}
+                    {thread.order_id ? (
+                      <Link
+                        href={`/admin/orders/${encodeURIComponent(thread.order_id)}`}
+                        className="text-brand-blue font-bold hover:underline"
+                        title="Lihat detail pesanan"
+                      >
+                        Pesanan {thread.order_id}
+                      </Link>
+                    ) : (
+                      `Thread #${thread.id}`
+                    )}
                     {" · "}
                     {thread.status === "open" ? "Terbuka" : "Ditutup"}
                   </p>

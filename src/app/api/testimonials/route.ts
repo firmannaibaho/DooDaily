@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { testimonialQueries } from "@/lib/db";
 import {
-  saveTestimoniImage,
-  deleteTestimoniImage,
-  testimonialImageUrl,
+  saveUpload,
+  deleteUpload,
+  uploadUrl,
   MAX_IMAGE_BYTES,
-} from "@/lib/testimonial-storage";
+} from "@/lib/upload-storage";
 
 /**
  * Validasi & normalisasi input teks dari form admin.
@@ -42,7 +42,7 @@ export async function GET() {
     testimonials: testimonialList.map((t) => ({
       ...t,
       image_path: t.image_path ?? "",
-      image_url: testimonialImageUrl(t.image_path ?? ""),
+      image_url: uploadUrl(t.image_path ?? "", "testimoni"),
     })),
   });
 }
@@ -104,8 +104,8 @@ export async function POST(request: Request) {
 
   let imagePath = "";
   try {
-    const saved = await saveTestimoniImage(image, "testimoni");
-    imagePath = saved.fileName;
+    const saved = await saveUpload(image, "testimoni");
+    imagePath = saved.path;
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Gagal menyimpan gambar.";
@@ -120,13 +120,13 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         message: "Testimoni ditambahkan.",
-        testimonial: { ...created, image_url: testimonialImageUrl(created.image_path) },
+        testimonial: { ...created, image_url: uploadUrl(created.image_path, "testimoni") },
       },
       { status: 201 }
     );
   } catch (error) {
     // Jangan tinggalkan berkas yatim bila penyimpanan ke database gagal.
-    if (imagePath) await deleteTestimoniImage(imagePath);
+    if (imagePath) await deleteUpload(imagePath, "testimoni");
     console.error("Create testimonial error:", error);
     return NextResponse.json(
       { message: "Gagal menyimpan testimoni." },

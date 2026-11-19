@@ -4,8 +4,6 @@ import { orderQueries } from "@/lib/db";
 import {
   saveUpload,
   deleteUpload,
-  fileNameOf,
-  uploadUrl,
   MAX_IMAGE_BYTES,
 } from "@/lib/upload-storage";
 
@@ -65,7 +63,7 @@ export async function POST(
     return NextResponse.json({ message: "Ukuran gambar maksimal 5 MB." }, { status: 400 });
   }
 
-  let saved: { fileName: string; url: string };
+  let saved: { path: string; url: string };
   try {
     saved = await saveUpload(image, "bukti");
   } catch (error) {
@@ -76,23 +74,23 @@ export async function POST(
 
   try {
     const lama = order.payment_proof ?? "";
-    await orderQueries.updatePaymentProof(order_id, saved.fileName);
+    await orderQueries.updatePaymentProof(order_id, saved.path);
 
     // Hapus bukti lama setelah baris database berhasil diperbarui, supaya
     // tidak ada berkas yatim bila update gagal.
-    if (lama) await deleteUpload(fileNameOf(lama), "bukti");
+    if (lama) await deleteUpload(lama, "bukti");
 
     return NextResponse.json(
       {
         message: "Bukti pembayaran terunggah.",
-        payment_proof: saved.fileName,
-        payment_proof_url: uploadUrl(saved.fileName, "bukti"),
+        payment_proof: saved.path,
+        payment_proof_url: saved.url,
       },
       { status: 201 }
     );
   } catch (error) {
     // Jangan tinggalkan berkas tanpa pemilik bila database gagal.
-    await deleteUpload(saved.fileName, "bukti");
+    await deleteUpload(saved.path, "bukti");
     console.error("Upload bukti error:", error);
     return NextResponse.json(
       { message: "Gagal menyimpan bukti pembayaran." },
