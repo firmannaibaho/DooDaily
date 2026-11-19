@@ -20,14 +20,12 @@ export async function GET() {
     return NextResponse.json({ message: "Unauthenticated" }, { status: 401 });
   }
 
-  if ((session.user as any).role === "admin") {
+  if (session.user.role === "admin") {
     const orders = await orderQueries.findAll();
     return NextResponse.json({ orders });
   }
 
-  const orders = await orderQueries.findByUserId(
-    Number((session.user as any).id)
-  );
+  const orders = await orderQueries.findByUserId(Number(session.user.id));
   return NextResponse.json({ orders });
 }
 
@@ -50,7 +48,7 @@ export async function POST(request: Request) {
   }
 
   // Cegah role admin membuat transaksi / checkout
-  if ((session.user as any).role === "admin") {
+  if (session.user.role === "admin") {
     return NextResponse.json(
       { message: "Akun admin tidak diperkenankan melakukan transaksi checkout." },
       { status: 403 }
@@ -83,7 +81,7 @@ export async function POST(request: Request) {
    * Nilai 0 / NaN menandakan sesi rusak (token tanpa id) → tolak, jangan
    * menyimpan pesanan tanpa pemilik.
    */
-  const user_id = Number((session.user as any).id);
+  const user_id = Number(session.user.id);
   if (!Number.isFinite(user_id) || user_id <= 0) {
     return NextResponse.json(
       { message: "Sesi tidak valid. Silakan login ulang." },

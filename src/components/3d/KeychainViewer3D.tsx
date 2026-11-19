@@ -18,12 +18,10 @@ function CustomArtworkFace({
   textureUrl,
   shape,
   name,
-  color,
 }: {
   textureUrl: string;
   shape: KeychainShape;
   name?: string;
-  color: string;
 }) {
   const texture = useMemo(() => {
     if (!textureUrl) return null;
@@ -249,7 +247,6 @@ function KeychainBody({
           textureUrl={textureUrl}
           shape={shape}
           name={name}
-          color={color}
         />
       ) : (
         <CatFace color={color} name={name} />
@@ -306,7 +303,6 @@ export default function KeychainViewer3D({
   color,
   name,
   accessoryEmoji,
-  character,
   textureUrl,
   shape = "rounded",
 }: KeychainViewer3DProps) {

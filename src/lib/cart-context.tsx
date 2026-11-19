@@ -82,7 +82,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Storage key spesifik per user (guest / user_id)
   const userKey =
     status === "authenticated" && session?.user
-      ? `doodaily_cart_user_${(session.user as any).id || session.user.email}`
+      ? `doodaily_cart_user_${session.user.id || session.user.email}`
       : GUEST_CART_KEY;
 
   const prevUserKeyRef = useRef(userKey);
@@ -107,34 +107,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     const isUserCart = userKey !== GUEST_CART_KEY;
 
-    try {
-      // 1. Ambil keranjang milik kunci aktif (kosong bila belum ada).
-      const stored = localStorage.getItem(userKey);
-      let nextItems: CartItem[] = [];
-      if (stored) {
-        const parsed: unknown = JSON.parse(stored);
-        if (Array.isArray(parsed)) nextItems = parsed as CartItem[];
-      }
-
-      // 2. Serap keranjang guest ke keranjang user, lalu bersihkan kuncinya.
-      const guestStored = isUserCart ? localStorage.getItem(GUEST_CART_KEY) : null;
-      if (guestStored) {
-        const guestParsed: unknown = JSON.parse(guestStored);
-        if (Array.isArray(guestParsed) && guestParsed.length > 0) {
-          nextItems = mergeCartItems(nextItems, guestParsed as CartItem[]);
-          localStorage.setItem(userKey, JSON.stringify(nextItems));
+    /**
+     * Pembacaan localStorage dilakukan di microtask, bukan langsung di body
+     * effect, agar setState tidak berjalan sinkron saat effect (aturan
+     * react-hooks/set-state-in-effect) sehingga tidak memicu cascading render.
+     */
+    const timer = setTimeout(() => {
+      try {
+        // 1. Ambil keranjang milik kunci aktif (kosong bila belum ada).
+        const stored = localStorage.getItem(userKey);
+        let nextItems: CartItem[] = [];
+        if (stored) {
+          const parsed: unknown = JSON.parse(stored);
+          if (Array.isArray(parsed)) nextItems = parsed as CartItem[];
         }
-        localStorage.removeItem(GUEST_CART_KEY);
+
+        // 2. Serap keranjang guest ke keranjang user, lalu bersihkan kuncinya.
+        const guestStored = isUserCart ? localStorage.getItem(GUEST_CART_KEY) : null;
+        if (guestStored) {
+          const guestParsed: unknown = JSON.parse(guestStored);
+          if (Array.isArray(guestParsed) && guestParsed.length > 0) {
+            nextItems = mergeCartItems(nextItems, guestParsed as CartItem[]);
+            localStorage.setItem(userKey, JSON.stringify(nextItems));
+          }
+          localStorage.removeItem(GUEST_CART_KEY);
+        }
+
+        setItems(nextItems);
+      } catch (e) {
+        console.error("Gagal membaca keranjang dari localStorage:", e);
+        setItems([]);
       }
 
-      setItems(nextItems);
-    } catch (e) {
-      console.error("Gagal membaca keranjang dari localStorage:", e);
-      setItems([]);
-    }
+      setHydrated(true);
+      prevUserKeyRef.current = userKey;
+    }, 0);
 
-    setHydrated(true);
-    prevUserKeyRef.current = userKey;
+    return () => clearTimeout(timer);
   }, [userKey, status]);
 
   // Simpan keranjang ke localStorage spesifik user aktif setiap items berubah

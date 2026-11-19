@@ -1,13 +1,11 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
-import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { FloatingElement } from "@/components/stickers/FloatingElement";
-import { Star, Sparkle } from "@/components/stickers/Decorations";
+import { Star } from "@/components/stickers/Decorations";
 import { Instagram, Twitter, Facebook } from "@/components/stickers/SocialIcons";
-import { Mail, MapPin, Clock } from "lucide-react";
+import { Mail, Clock } from "lucide-react";
 import { SOCIAL_LINKS } from "@/lib/social";
 
 export default function ContactPage() {

@@ -3,7 +3,7 @@
 import React from "react";
 import Image from "next/image";
 import { FloatingElement } from "@/components/stickers/FloatingElement";
-import { Star, Sparkle, CatPaw, DoodleArrow } from "@/components/stickers/Decorations";
+import { Star, CatPaw, DoodleArrow } from "@/components/stickers/Decorations";
 
 export default function AboutPage() {
   return (
@@ -38,14 +38,14 @@ export default function AboutPage() {
            
            <h2 className="text-4xl mb-6">Our Story</h2>
            <p className="mb-8">
-             Doodaily Art started from a simple love for doodles and a desire to make everyday items a little more fun. 
-             We believe that creativity shouldn't be expensive, and everyone deserves a little companion to bring a smile to their day.
+             Doodaily Art started from a simple love for doodles and a desire to make everyday items a little more fun.{" "}
+             We believe that creativity shouldn&apos;t be expensive, and everyone deserves a little companion to bring a smile to their day.
            </p>
 
            <h2 className="text-4xl mb-6 mt-12">Made for You</h2>
            <p className="mb-8">
-             Whether you're a student looking to decorate your backpack, or just someone who appreciates cute design, 
-             our products are made with you in mind. We specifically focus on customizable keychains because we want you 
+             Whether you&apos;re a student looking to decorate your backpack, or just someone who appreciates cute design,{" "}
+             our products are made with you in mind. We specifically focus on customizable keychains because we want you{" "}
              to feel a connection with the things you own.
            </p>
 

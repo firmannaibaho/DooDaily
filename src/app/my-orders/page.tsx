@@ -4,9 +4,14 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Package, ArrowLeft, Sparkles, Camera, CheckCircle2 } from "lucide-react";
+import { Package, ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ChatContextButton } from "@/components/chat/ChatContextButton";
+import {
+  parseOrderItems,
+  uploadPublicUrl,
+  type OrderRecord,
+} from "@/lib/order-types";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-700",
@@ -27,9 +32,9 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function MyOrdersPage() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,22 +42,27 @@ export default function MyOrdersPage() {
       router.push("/login");
       return;
     }
-    if (status === "authenticated") {
-      fetchOrders();
-    }
-  }, [status]);
+    if (status !== "authenticated") return;
 
-  const fetchOrders = async () => {
-    try {
-      const res = await fetch("/api/orders");
-      const data = await res.json();
-      setOrders(data.orders || []);
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/orders");
+        const data = (await res.json().catch(() => null)) as
+          | { orders?: OrderRecord[] }
+          | null;
+        if (!cancelled) setOrders(data?.orders ?? []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [status, router]);
 
   const formatRupiah = (n: number) => `Rp ${n.toLocaleString("id-ID")}`;
 
@@ -98,10 +108,7 @@ export default function MyOrdersPage() {
       ) : (
         <div className="space-y-5">
           {orders.map((order) => {
-            let items: any[] = [];
-            try {
-              items = JSON.parse(order.items_json);
-            } catch {}
+            const items = parseOrderItems(order.items_json);
 
             return (
               <div
@@ -141,7 +148,7 @@ export default function MyOrdersPage() {
                 {/* Items */}
                 {items.length > 0 && (
                   <div className="bg-gray-50 rounded-2xl p-4 text-sm space-y-3 mb-4">
-                    {items.map((item: any, i: number) => (
+                    {items.map((item, i: number) => (
                       <div
                         key={i}
                         className="flex gap-3 border-b border-gray-200/60 pb-3 last:border-none last:pb-0"
@@ -209,7 +216,7 @@ export default function MyOrdersPage() {
                         Bukti Pembayaran
                       </p>
                       <a
-                        href={`/uploads/bukti/${order.payment_proof.split("/").pop()}`}
+                        href={uploadPublicUrl(order.payment_proof, "bukti")}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-xs font-bold text-brand-blue underline hover:text-brand-orange"
@@ -249,12 +256,13 @@ export default function MyOrdersPage() {
                 {order.result_image && (
                   <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-brand-orange/30 flex flex-col md:flex-row items-center gap-4">
                     <div className="w-full md:w-36 h-36 rounded-xl overflow-hidden relative border-2 border-white shadow-sm shrink-0 bg-white">
+                      {/* eslint-disable-next-line @next/next/no-img-element -- URL dinamis (data URI / Storage), bukan aset statis */}
                       <img
                         src={order.result_image}
                         alt="Hasil Jadi Keychain Kamu"
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.target as any).src = "/catalog/study-work-keychain.jpg";
+                          e.currentTarget.src = "/catalog/study-work-keychain.jpg";
                         }}
                       />
                     </div>

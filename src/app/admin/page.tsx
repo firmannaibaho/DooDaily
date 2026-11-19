@@ -16,6 +16,7 @@ import {
   MessageSquareHeart,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import type { OrderRecord } from "@/lib/order-types";
 
 interface DashboardStats {
   totalOrders: number;
@@ -24,7 +25,7 @@ interface DashboardStats {
   processingOrders: number;
   shippedOrders: number;
   doneOrders: number;
-  recentOrders: any[];
+  recentOrders: OrderRecord[];
 }
 
 export default function AdminDashboard() {
@@ -41,32 +42,63 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStats();
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/orders");
+        const data = (await res.json().catch(() => null)) as
+          | { orders?: OrderRecord[] }
+          | null;
+        const orders = data?.orders ?? [];
+        if (cancelled) return;
+
+        const totalRevenue = orders
+          .filter((o) => o.status !== "cancelled")
+          .reduce((sum, o) => sum + (o.total || 0), 0);
+
+        setStats({
+          totalOrders: orders.length,
+          totalRevenue,
+          pendingOrders: orders.filter((o) => o.status === "pending").length,
+          processingOrders: orders.filter((o) => o.status === "processing").length,
+          shippedOrders: orders.filter((o) => o.status === "shipped").length,
+          doneOrders: orders.filter((o) => o.status === "done").length,
+          recentOrders: orders.slice(0, 5),
+        });
+      } catch (error) {
+        console.error("Failed to fetch stats:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
+  /** Muat ulang statistik (tombol "Segarkan"). */
   const fetchStats = async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/orders");
-      const data = await res.json();
-      const orders = data.orders || [];
+      const data = (await res.json().catch(() => null)) as
+        | { orders?: OrderRecord[] }
+        | null;
+      const orders = data?.orders ?? [];
 
       const totalRevenue = orders
-        .filter((o: any) => o.status !== "cancelled")
-        .reduce((sum: number, o: any) => sum + (o.total || 0), 0);
-
-      const pendingOrders = orders.filter((o: any) => o.status === "pending").length;
-      const processingOrders = orders.filter((o: any) => o.status === "processing").length;
-      const shippedOrders = orders.filter((o: any) => o.status === "shipped").length;
-      const doneOrders = orders.filter((o: any) => o.status === "done").length;
+        .filter((o) => o.status !== "cancelled")
+        .reduce((sum, o) => sum + (o.total || 0), 0);
 
       setStats({
         totalOrders: orders.length,
         totalRevenue,
-        pendingOrders,
-        processingOrders,
-        shippedOrders,
-        doneOrders,
+        pendingOrders: orders.filter((o) => o.status === "pending").length,
+        processingOrders: orders.filter((o) => o.status === "processing").length,
+        shippedOrders: orders.filter((o) => o.status === "shipped").length,
+        doneOrders: orders.filter((o) => o.status === "done").length,
         recentOrders: orders.slice(0, 5),
       });
     } catch (error) {
@@ -285,7 +317,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {stats.recentOrders.map((order: any) => (
+                {stats.recentOrders.map((order) => (
                   <tr key={order.order_id} className="border-b border-gray-50 hover:bg-[#FFFBF2]/50 transition-colors">
                     <td className="py-3 px-3 font-mono text-xs font-bold text-foreground/70">
                       {order.order_id}

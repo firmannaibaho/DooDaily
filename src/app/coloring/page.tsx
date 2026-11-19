@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, Suspense } from "react
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/Button";
 import { FloatingElement } from "@/components/stickers/FloatingElement";
-import { Sparkle, Star } from "@/components/stickers/Decorations";
+import { Sparkle } from "@/components/stickers/Decorations";
 import { Undo2, Redo2, Eraser, Trash2, Download, Pen, ShoppingBag, Loader2, Sparkles, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCart } from "@/lib/cart-context";

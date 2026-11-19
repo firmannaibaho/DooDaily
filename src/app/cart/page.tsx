@@ -12,7 +12,7 @@ import { ChatContextButton } from "@/components/chat/ChatContextButton";
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal } = useCart();
   const { data: session } = useSession();
-  const isAdmin = (session?.user as any)?.role === "admin";
+  const isAdmin = session?.user?.role === "admin";
 
   if (items.length === 0) {
     return (

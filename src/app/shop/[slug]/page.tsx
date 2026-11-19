@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Star, CatPaw } from "@/components/stickers/Decorations";
+import { Star } from "@/components/stickers/Decorations";
 import { ShoppingBag, Heart, ChevronRight, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { products, getProductBySlug } from "@/lib/products";

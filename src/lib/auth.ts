@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { type DefaultSession } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { userQueries } from "./db";
 import bcrypt from "bcryptjs";
@@ -11,6 +11,30 @@ import bcrypt from "bcryptjs";
  * Prioritas: AUTH_SECRET (konvensi Auth.js v5) → NEXTAUTH_SECRET (v4).
  */
 export const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "";
+
+/** Kolom tambahan yang kita simpan pada sesi (dari tabel `users`). */
+interface AppUserFields {
+  id: string;
+  role: string;
+}
+
+declare module "next-auth" {
+  interface Session {
+    user: DefaultSession["user"] & AppUserFields;
+  }
+  /** User yang dikembalikan `authorize()`. */
+  interface User extends AppUserFields {
+    name?: string | null;
+    email?: string | null;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id?: string;
+    role?: string;
+  }
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -44,15 +68,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.id = (user as any).id;
-        token.role = (user as any).role;
+        token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id as string;
-        (session.user as any).role = token.role as string;
+        session.user.id = token.id ?? "";
+        session.user.role = token.role ?? "user";
       }
       return session;
     },

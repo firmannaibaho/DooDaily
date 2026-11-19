@@ -216,7 +216,7 @@ function playBass(ctx: AudioContext, dest: AudioNode, freq: number, startTime: n
 }
 
 // 5. BELLS SYNTH
-function playBell(ctx: AudioContext, dest: AudioNode, freq: number, startTime: number, duration: number) {
+function playBell(ctx: AudioContext, dest: AudioNode, freq: number, startTime: number) {
   // Main tone
   const osc1 = ctx.createOscillator();
   // Inharmonic overtone for metallic sound
@@ -287,10 +287,10 @@ function scheduleLoop(ctx: AudioContext, reverb: ConvolverNode, masterGain: Gain
   // 5. Bells (extra wet for magic feel)
   BELL_NOTES.forEach(([freq, beatOffset]) => {
     const t = baseTime + beatOffset * BEAT;
-    playBell(ctx, dry, freq, t, 0);
-    playBell(ctx, wet, freq, t, 0);
+    playBell(ctx, dry, freq, t);
+    playBell(ctx, wet, freq, t);
     // Add an extra connection to wet for bells
-    playBell(ctx, wet, freq, t, 0); 
+    playBell(ctx, wet, freq, t); 
   });
 }
 

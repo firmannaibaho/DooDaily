@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { FloatingElement } from "@/components/stickers/FloatingElement";
-import { Star, Sparkle, CatPaw, DoodleArrow } from "@/components/stickers/Decorations";
 import { Button } from "@/components/ui/Button";
-import { Trash2, RefreshCcw, Sparkles, Heart, Trophy } from "lucide-react";
+import { Trash2, Sparkles, Heart, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Sound Effects Synthesizer (Web Audio API) ──────────────────────
@@ -119,7 +117,7 @@ export default function PlaygroundPage() {
     setCatState("eating");
 
     // Add floating text feedback
-    const textId = Math.random().toString();
+    const textId = crypto.randomUUID();
     setFloatingText((prev) => [
       ...prev,
       { id: textId, text: `+${food.love} Love! ${food.emoji}`, x: window.innerWidth / 2, y: 200 },

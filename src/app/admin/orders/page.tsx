@@ -22,6 +22,11 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  parseOrderItems,
+  uploadPublicUrl,
+  type OrderRecord,
+} from "@/lib/order-types";
 
 const STATUSES = ["pending", "confirmed", "processing", "shipped", "done", "cancelled"];
 
@@ -45,18 +50,11 @@ const statusLabels: Record<string, string> = {
 
 /** URL gambar bukti bayar — mendukung path Storage maupun data lama. */
 function proofUrl(value?: string): string {
-  if (!value) return "";
-  if (/^https?:\/\//i.test(value) || value.startsWith("data:") || value.startsWith("/")) {
-    return value;
-  }
-  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/+$/, "");
-  const bucket = process.env.NEXT_PUBLIC_UPLOAD_BUCKET || "uploads";
-  const path = value.includes("/") ? value : `bukti/${value.split("/").pop()}`;
-  return base ? `${base}/storage/v1/object/public/${bucket}/${path}` : `/uploads/${path}`;
+  return uploadPublicUrl(value, "bukti");
 }
 
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -77,7 +75,7 @@ export default function AdminOrdersPage() {
         setOrders(list);
 
         const initialProof: Record<string, { image: string; notes: string }> = {};
-        list.forEach((o: any) => {
+        list.forEach((o: OrderRecord) => {
           initialProof[o.order_id] = {
             image: o.result_image || "",
             notes: o.admin_notes || "",
@@ -109,7 +107,7 @@ export default function AdminOrdersPage() {
       setOrders(list);
 
       const initialProof: Record<string, { image: string; notes: string }> = {};
-      list.forEach((o: any) => {
+      list.forEach((o: OrderRecord) => {
         initialProof[o.order_id] = {
           image: o.result_image || "",
           notes: o.admin_notes || "",
@@ -202,7 +200,7 @@ export default function AdminOrdersPage() {
     return clean;
   };
 
-  const createWhatsAppLink = (order: any) => {
+  const createWhatsAppLink = (order: OrderRecord) => {
     const phone = getCleanPhone(order.phone);
     const msg = `Halo kak ${order.customer_name}! 👋\nKami dari Doodaily Art ingin mengonfirmasi pesanan Anda dengan ID: *${order.order_id}*.\n\nStatus saat ini: *${statusLabels[order.status] || order.status}*\nTotal: *${formatRupiah(order.total)}*\n\nFoto hasil pengerjaan custom juga sudah kami upload di halaman akun web kakak ya! ✨ Terimakasih! 🙏`;
     return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
@@ -309,10 +307,7 @@ export default function AdminOrdersPage() {
       ) : (
         <div className="space-y-4">
           {filteredOrders.map((order) => {
-            let items: any[] = [];
-            try {
-              items = JSON.parse(order.items_json);
-            } catch {}
+            const items = parseOrderItems(order.items_json);
 
             const isExpanded = expandedOrders[order.order_id] ?? true;
             const currentProof = editProof[order.order_id] || {
@@ -456,7 +451,7 @@ export default function AdminOrdersPage() {
                         Daftar Produk Pesanan ({items.length} item)
                       </h4>
                       <div className="space-y-3">
-                        {items.map((item: any, idx: number) => {
+                        {items.map((item, idx: number) => {
                           const hasCustom = item.customizations && item.customizations.length > 0;
                           return (
                             <div
@@ -483,7 +478,7 @@ export default function AdminOrdersPage() {
                                     <Sparkles className="w-3 h-3" /> Detail Custom & Instruksi Khusus:
                                   </span>
                                   <div className="flex flex-wrap gap-1.5">
-                                    {item.customizations.map((c: string, cIdx: number) => {
+                                    {(item.customizations ?? []).map((c: string, cIdx: number) => {
                                       const lower = c.toLowerCase();
                                       const isInstruction = lower.startsWith("instruksi");
                                       const isImage = lower.startsWith("gambar referensi");
@@ -599,12 +594,14 @@ export default function AdminOrdersPage() {
                         {/* Preview Gambar Jika Ada */}
                         {currentProof.image ? (
                           <div className="relative h-28 w-full md:w-48 rounded-xl overflow-hidden border-2 border-brand-blue/20 bg-white flex items-center justify-center">
+                            {/* eslint-disable-next-line @next/next/no-img-element -- URL dinamis (data URI / Storage), bukan aset statis */}
                             <img
                               src={currentProof.image}
                               alt="Preview Hasil Custom"
                               className="w-full h-full object-cover"
                               onError={(e) => {
-                                (e.target as any).src = "/catalog/study-work-keychain.jpg";
+                                (e.currentTarget as HTMLImageElement).src =
+                            "/catalog/study-work-keychain.jpg";
                               }}
                             />
                             <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] px-1.5 py-0.5 rounded font-mono">
