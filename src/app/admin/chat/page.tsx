@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Lock, LockOpen, RefreshCw } from "lucide-react";
@@ -66,44 +66,83 @@ function AdminChatContent() {
   const threadFromQuery = searchParams.get("thread");
 
   /**
-   * Buka thread langsung dari `?thread=<id>`.
+   * Menandai permintaan pembukaan awal yang SUDAH ditangani
+   * (`thread:12`, `order:DDL-...`, atau `auto`) agar tidak diulang tiap render
+   * dan tidak saling menimpa.
+   */
+  const handledQueryRef = useRef<string | null>(null);
+
+  /** Diisi bila `?order=` menunjuk pesanan yang belum punya thread chat. */
+  const [orderWithoutThread, setOrderWithoutThread] = useState<string | null>(null);
+
+  /**
+   * Buka thread dari query string — `?thread=<id>` (dari tombol Chat pada
+   * DETAIL pesanan) atau `?order=<order_id>` (tautan lama).
    *
-   * Dipakai tombol "Chat" pada pesanan admin yang sudah memastikan thread ada
-   * lebih dulu (POST /api/chat/admin/order-thread). Berlaku juga saat thread
-   * baru dibuat sehingga belum muncul di daftar `threads` pada render awal.
+   * KENAPA SATU EFEK DAN `selectThreadOnce`:
+   * Sebelumnya ada dua efek terpisah: satu membuka thread dari `?thread`, satu
+   * lagi otomatis membuka `threads[0]`. Keduanya berjalan pada commit yang sama
+   * sehingga `selectThread(threads[0])` bisa selesai BELAKANGAN dan menimpa
+   * thread yang diminta — admin terlihat membuka percakapan orang lain.
+   * Dengan satu efek bercabang dan penanda `handledQueryRef`, hanya satu thread
+   * yang pernah dibuka: yang diminta.
    */
   useEffect(() => {
-    if (!threadFromQuery || thread) return;
-    const id = Number(threadFromQuery);
-    if (!Number.isInteger(id) || id <= 0) return;
+    if (thread) return;
 
-    const timer = setTimeout(() => {
-      setShowListOnMobile(false);
-      void selectThread(id);
-    }, 0);
+    // ── Cabang 1: ?thread=<id> ──
+    if (threadFromQuery) {
+      if (handledQueryRef.current === `thread:${threadFromQuery}`) return;
+      const id = Number(threadFromQuery);
+      if (!Number.isInteger(id) || id <= 0) return;
+
+      handledQueryRef.current = `thread:${threadFromQuery}`;
+      const timer = setTimeout(() => {
+        setShowListOnMobile(false);
+        void selectThread(id);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+
+    // ── Cabang 2: ?order=<order_id> ──
+    if (orderFromQuery) {
+      // Tunggu daftar selesai dimuat sebelum mencari.
+      if (loadingThreads || threads.length === 0) return;
+      if (handledQueryRef.current === `order:${orderFromQuery}`) return;
+
+      const match = threads.find((item) => item.order_id === orderFromQuery);
+      if (!match) {
+        // Thread pesanan belum ada (pembeli belum pernah chat). Jangan buka
+        // percakapan sembarang — admin harus memakai tombol Chat di halaman
+        // detail pesanan yang akan membuat thread-nya lebih dulu.
+        handledQueryRef.current = `order:${orderFromQuery}`;
+        const warn = setTimeout(() => setOrderWithoutThread(orderFromQuery), 0);
+        return () => clearTimeout(warn);
+      }
+
+      handledQueryRef.current = `order:${orderFromQuery}`;
+      const timer = setTimeout(() => {
+        setShowListOnMobile(false);
+        void selectThread(match.id);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+
+    // ── Cabang 3: tidak ada query → buka yang teratas (perilaku desktop) ──
+    if (loadingThreads || threads.length === 0) return;
+    if (handledQueryRef.current === "auto") return;
+    handledQueryRef.current = "auto";
+
+    const timer = setTimeout(() => void selectThread(threads[0].id), 0);
     return () => clearTimeout(timer);
-  }, [threadFromQuery, thread, selectThread]);
-
-  // Buka percakapan pertama otomatis (desktop).
-  useEffect(() => {
-    if (thread || threadFromQuery || threads.length === 0) return;
-    const id = setTimeout(() => void selectThread(threads[0].id), 0);
-    return () => clearTimeout(id);
-  }, [thread, threadFromQuery, threads, selectThread]);
-
-  // Datang dari /admin/orders?order=DDL-xxx → lompat ke percakapan itu.
-  useEffect(() => {
-    if (!orderFromQuery || threads.length === 0 || thread) return;
-    const match = threads.find((item) => item.order_id === orderFromQuery);
-    if (!match) return;
-
-    // Ditunda agar tidak memicu cascading render langsung di dalam effect.
-    const id = setTimeout(() => {
-      setShowListOnMobile(false);
-      void selectThread(match.id);
-    }, 0);
-    return () => clearTimeout(id);
-  }, [orderFromQuery, threads, thread, selectThread]);
+  }, [
+    thread,
+    threadFromQuery,
+    orderFromQuery,
+    threads,
+    loadingThreads,
+    selectThread,
+  ]);
 
   const openThread = (item: AdminThreadSummary) => {
     setShowListOnMobile(false);
@@ -219,10 +258,29 @@ function AdminChatContent() {
           )}
         >
           {!thread ? (
-            <div className="flex-1 flex items-center justify-center px-6 text-center">
-              <p className="text-sm font-medium text-foreground/40">
-                Pilih percakapan di sebelah kiri.
-              </p>
+            <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">
+              {orderWithoutThread ? (
+                <>
+                  <p className="text-sm font-bold text-foreground/70">
+                    Pesanan <span className="font-mono">{orderWithoutThread}</span> belum
+                    punya percakapan.
+                  </p>
+                  <p className="text-xs font-medium text-foreground/50 max-w-sm">
+                    Buka detail pesanan lalu tekan tombol{" "}
+                    <strong>“Chat Pembeli soal Pesanan Ini”</strong> — percakapan akan
+                    dibuat untuk pembeli pesanan tersebut.
+                  </p>
+                  <Link href={`/admin/orders/${encodeURIComponent(orderWithoutThread)}`}>
+                    <Button variant="outline" size="sm" className="rounded-full">
+                      Buka Detail Pesanan
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <p className="text-sm font-medium text-foreground/40">
+                  Pilih percakapan di sebelah kiri.
+                </p>
+              )}
             </div>
           ) : (
             <>

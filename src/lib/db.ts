@@ -335,7 +335,15 @@ export const chatQueries = {
     return created.data as unknown as ChatThread;
   },
 
-  /** Ambil thread untuk satu pesanan; buat bila belum ada. */
+  /**
+   * Ambil thread untuk satu pesanan; buat bila belum ada.
+   *
+   * KENAPA `user_id` DIPAKSA BENAR:
+   * Thread pesanan harus selalu menempel pada PEMILIK pesanan. Bila baris lama
+   * (mis. dibuat saat alur masih memakai id lain) memuat `user_id` yang berbeda,
+   * percakapan akan terbuka atas nama orang lain — admin membalas ke pembeli
+   * yang salah. Baris seperti itu diperbaiki di sini, bukan dibiarkan.
+   */
   getOrCreateOrderThread: async (userId: number, orderId: string): Promise<ChatThread> => {
     const client = requireClient();
 
@@ -350,7 +358,31 @@ export const chatQueries = {
       console.error("chatQueries.getOrCreateOrderThread(read) error:", existing.error);
       throw existing.error;
     }
-    if (existing.data) return existing.data as unknown as ChatThread;
+
+    if (existing.data) {
+      const thread = existing.data as unknown as ChatThread;
+
+      // Perbaiki kepemilikan yang salah agar pesan masuk ke pembeli yang benar.
+      if (Number(thread.user_id) !== Number(userId)) {
+        console.warn(
+          `chatQueries.getOrCreateOrderThread: thread #${thread.id} milik user ${thread.user_id}, ` +
+            `seharusnya ${userId} (pesanan ${orderId}) — diperbaiki.`
+        );
+        const fixed = await client
+          .from("chat_threads")
+          .update({ user_id: userId, subject: `Pesanan ${orderId}` })
+          .eq("id", thread.id)
+          .select(THREAD_SELECT)
+          .single();
+
+        if (!fixed.error && fixed.data) return fixed.data as unknown as ChatThread;
+        if (fixed.error) {
+          console.error("chatQueries.getOrCreateOrderThread(fix owner) error:", fixed.error);
+        }
+      }
+
+      return thread;
+    }
 
     const created = await client
       .from("chat_threads")
