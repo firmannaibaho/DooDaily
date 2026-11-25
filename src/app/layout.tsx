@@ -45,8 +45,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
+        suppressHydrationWarning
         className={`${quicksand.variable} ${fredoka.variable} antialiased min-h-screen flex flex-col selection:bg-brand-orange selection:text-white overflow-x-hidden`}
       >
         <Providers>

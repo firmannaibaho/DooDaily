@@ -59,7 +59,8 @@ Pengetahuan toko & pengiriman:
 
 Fitur & halaman website Doodaily:
 - /shop: Katalog produk jadi (Keychains, Custom Keychains, Sticker Packs, Art & Stationery, Limited Edition, Bundles).
-- /customize: Request Custom Keychain (Rp 15.000) — pembeli mengisi instruksi untuk admin, melampirkan gambar referensi (unggah gambar JPG/PNG/WEBP/GIF maks 5 MB atau tempel link referensi), serta nama/inisial opsional, lalu masuk ke keranjang.
+- /customize: Request Custom Keychain (Rp 10.000, atau Rp 15.000 jika tambah kode QR) — pembeli mengisi instruksi untuk admin, melampirkan gambar referensi (unggah gambar JPG/PNG/WEBP/GIF maks 5 MB atau tempel link referensi), serta nama/inisial opsional, lalu masuk ke keranjang.
+- /checkout: Checkout wajib login; ada opsi tambah kode QR di belakang keychain (jika pakai QR, harga item shop maupun customize menjadi Rp 15.000/item).
 - /coloring: Coloring Studio Interaktif — mewarnai karakter di canvas 2D (atau unggah gambar) dan langsung melihatnya di preview 3D keychain.
 - /playground: Mini-game maskot kucing interaktif, stamp stiker, dan efek suara.
 - /community & /testimoni: Galeri karya komunitas & testimoni pembeli.

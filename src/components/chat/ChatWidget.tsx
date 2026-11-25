@@ -18,7 +18,7 @@ import { onOpenChat } from "./chat-bus";
  * dan halaman penuh /chat dibuka dari tombol perbesar di dalam widget.
  */
 export function ChatWidget() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -29,13 +29,14 @@ export function ChatWidget() {
   const { thread, messages, loading, error, open, send } = useChat();
 
   const isLoggedIn = status === "authenticated";
+  const isAdmin = session?.user?.role === "admin";
 
   // Saat belum login, badge tidak ditampilkan (unread dari sesi sebelumnya diabaikan).
   const unreadCount = isLoggedIn ? unread : 0;
 
   // Muat unread berkala untuk badge.
   useEffect(() => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || isAdmin) return;
 
     let cancelled = false;
     const load = async () => {
@@ -55,7 +56,7 @@ export function ChatWidget() {
       cancelled = true;
       clearInterval(id);
     };
-  }, [isLoggedIn]);
+  }, [isLoggedIn, isAdmin]);
 
   // Buka percakapan ketika panel dibuka / konteks berubah.
   const openContext = useCallback(
@@ -92,8 +93,8 @@ export function ChatWidget() {
     if (nextOpen) openContext({ kind: "general" });
   };
 
-  // Sembunyikan di halaman admin (admin memakai /admin/chat).
-  if (pathname.startsWith("/admin")) return null;
+  // Sembunyikan untuk admin (admin memakai /admin/chat) dan di halaman admin.
+  if (isAdmin || pathname.startsWith("/admin")) return null;
 
   const activeMeta = CHAT_KIND_META[context.kind];
   const subtitle =

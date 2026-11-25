@@ -1,4 +1,12 @@
+import { randomBytes } from "node:crypto";
 import { supabase, SUPABASE_NOT_CONFIGURED_MESSAGE } from "./supabase";
+import type {
+  KeychainReport,
+  KeychainTag,
+  KeychainTagWithReports,
+  QrMode,
+} from "./keychain-types";
+import { buildTagLabels } from "./keychain-types";
 import type {
   ChatMessage,
   ChatSenderRole,
@@ -797,6 +805,168 @@ export const testimonialQueries = {
     if (error) {
       console.error("testimonialQueries.remove error:", error);
       throw error;
+    }
+  },
+};
+
+// ─── QR Keychain Queries ─────────────────────────────────────────────────────
+
+async function attachReports(tags: KeychainTag[]): Promise<KeychainTagWithReports[]> {
+  if (!supabase || tags.length === 0) return tags.map((t) => ({ ...t, reports: [] }));
+
+  const tagIds = tags.map((t) => t.id);
+  const { data, error } = await supabase
+    .from("keychain_reports")
+    .select("*")
+    .in("tag_id", tagIds)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("keychainQueries.attachReports error:", error);
+    return tags.map((t) => ({ ...t, reports: [] }));
+  }
+
+  const byTag = new Map<number, KeychainReport[]>();
+  for (const r of (data as KeychainReport[]) ?? []) {
+    const list = byTag.get(r.tag_id) ?? [];
+    list.push(r);
+    byTag.set(r.tag_id, list);
+  }
+  return tags.map((t) => ({ ...t, reports: byTag.get(t.id) ?? [] }));
+}
+
+export const keychainQueries = {
+  createTagsForOrder: async (
+    orderId: string,
+    userId: number,
+    itemsJson: string,
+    mode: QrMode
+  ): Promise<KeychainTag[]> => {
+    const client = requireClient();
+    let parsed: Array<{ name?: unknown; quantity?: unknown }> = [];
+    try {
+      const raw = JSON.parse(itemsJson);
+      if (Array.isArray(raw)) parsed = raw;
+    } catch {
+      parsed = [];
+    }
+
+    const labels = buildTagLabels(parsed, mode, orderId);
+    const rows = labels.map((itemName) => ({
+      token: randomBytes(9).toString("base64url"),
+      order_id: orderId,
+      user_id: userId,
+      item_name: itemName,
+    }));
+
+    const { data, error } = await client.from("keychain_tags").insert(rows).select("*");
+    if (error) {
+      console.error("keychainQueries.createTagsForOrder error:", error);
+      throw error;
+    }
+    return (data as KeychainTag[]) ?? [];
+  },
+
+  findByToken: async (token: string): Promise<KeychainTag | null> => {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from("keychain_tags")
+      .select("*")
+      .eq("token", token)
+      .maybeSingle();
+
+    if (error) {
+      console.error("keychainQueries.findByToken error:", error);
+      return null;
+    }
+    return (data as KeychainTag) ?? null;
+  },
+
+  listByOrder: async (orderId: string): Promise<KeychainTagWithReports[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from("keychain_tags")
+      .select("*")
+      .eq("order_id", orderId)
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error("keychainQueries.listByOrder error:", error);
+      return [];
+    }
+    return attachReports((data as KeychainTag[]) ?? []);
+  },
+
+  listByUser: async (userId: number): Promise<KeychainTagWithReports[]> => {
+    if (!supabase) return [];
+    const { data, error } = await supabase
+      .from("keychain_tags")
+      .select("*")
+      .eq("user_id", userId)
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.error("keychainQueries.listByUser error:", error);
+      return [];
+    }
+    return attachReports((data as KeychainTag[]) ?? []);
+  },
+
+  updateInfo: async (
+    token: string,
+    patch: {
+      display_title: string;
+      owner_message: string;
+      contact_info: string;
+      show_contact: boolean;
+      is_lost: boolean;
+    }
+  ): Promise<KeychainTag | null> => {
+    const { data, error } = await requireClient()
+      .from("keychain_tags")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("token", token)
+      .select("*")
+      .maybeSingle();
+
+    if (error) {
+      console.error("keychainQueries.updateInfo error:", error);
+      throw error;
+    }
+    return (data as KeychainTag) ?? null;
+  },
+
+  createReport: async (
+    tagId: number,
+    input: {
+      finder_name: string;
+      finder_contact: string;
+      found_location: string;
+      notes: string;
+    }
+  ): Promise<KeychainReport> => {
+    const { data, error } = await requireClient()
+      .from("keychain_reports")
+      .insert([{ tag_id: tagId, ...input }])
+      .select("*")
+      .single();
+
+    if (error) {
+      console.error("keychainQueries.createReport error:", error);
+      throw error;
+    }
+    return data as KeychainReport;
+  },
+
+  markReportsRead: async (tagId: number): Promise<void> => {
+    const { error } = await requireClient()
+      .from("keychain_reports")
+      .update({ is_read: true })
+      .eq("tag_id", tagId)
+      .eq("is_read", false);
+
+    if (error) {
+      console.error("keychainQueries.markReportsRead error:", error);
     }
   },
 };

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import Link from "next/link";
@@ -23,7 +23,7 @@ import { useCart } from "@/lib/cart-context";
 
 /** Produk custom yang dipakai saat menambah ke keranjang. */
 const CUSTOM_PRODUCT_ID = 9001;
-const CUSTOM_PRICE = 15000;
+const CUSTOM_PRICE = 10000;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const QUICK_TIPS = [
