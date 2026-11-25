@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { FloatingElement } from "@/components/stickers/FloatingElement";
 import { Star, Sparkle, CatPaw, DoodleArrow } from "@/components/stickers/Decorations";
-import { Instagram, Twitter, Facebook } from "@/components/stickers/SocialIcons";
+import { Instagram, Twitter, Facebook, TikTok } from "@/components/stickers/SocialIcons";
 import { ShoppingBag } from "lucide-react";
 import { getFeaturedProducts } from "@/lib/products";
 import { useCart } from "@/lib/cart-context";
@@ -199,20 +199,32 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
               <Link href="/coloring">
-                <Button className="bg-white text-brand-orange hover:bg-[#FFFBF2] shadow-none hover:translate-y-0 text-lg h-14 px-8 rounded-full border-2 border-transparent hover:border-white">
+                <Button
+                  variant="ghost"
+                  className="bg-white text-brand-orange hover:bg-[#FFFBF2] hover:text-brand-orange border-2 border-white text-lg h-14 px-8 rounded-full"
+                >
                   Coloring Studio
                 </Button>
               </Link>
               <Link href="/playground">
-                <Button variant="outline" className="border-white text-white hover:bg-white/20 shadow-none hover:translate-y-0 text-lg h-14 px-8 rounded-full">
+                <Button
+                  variant="ghost"
+                  className="bg-transparent text-white hover:bg-white/20 hover:text-white border-2 border-white text-lg h-14 px-8 rounded-full"
+                >
                   Playground
                 </Button>
               </Link>
             </div>
           </div>
 
-          <div className="relative z-10 w-48 h-48 md:w-64 md:h-64 bg-white/20 rounded-full flex items-center justify-center p-8 backdrop-blur-sm border-4 border-white/30">
-            <Image src="/logo.jpg" alt="Doodaily Logo" width={200} height={200} className="object-contain" />
+          <div className="relative z-10 w-48 h-48 md:w-64 md:h-64 bg-white/20 rounded-full flex items-center justify-center p-3 overflow-hidden backdrop-blur-sm border-4 border-white/30">
+            <Image
+              src="/logo.jpg"
+              alt="Doodaily Logo"
+              width={240}
+              height={240}
+              className="w-full h-full object-cover rounded-full"
+            />
           </div>
 
           <Star className="absolute top-10 right-10 w-12 h-12 text-white opacity-50" />
@@ -247,7 +259,7 @@ export default function Home() {
               rel="noopener noreferrer"
               className="bg-white rounded-3xl p-6 border-2 border-brand-blue-light hover:border-brand-blue hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,0.12)] hover:-translate-y-2 transition-all flex flex-col items-center gap-3 group"
             >
-              <span className="text-3xl font-bold text-brand-blue group-hover:scale-110 transition-transform">TT</span>
+              <TikTok className="w-7 h-7 text-brand-blue group-hover:scale-110 transition-transform" />
               <span className="font-bold text-sm text-foreground">TikTok</span>
               <span className="text-xs text-foreground/50">{SOCIAL_LINKS.tiktok.handle}</span>
             </a>

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Package, ArrowLeft, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ChatContextButton } from "@/components/chat/ChatContextButton";
+import { KeychainQrPanel } from "@/components/keychain/KeychainQrPanel";
 import {
   parseOrderItems,
   uploadPublicUrl,
@@ -251,6 +252,9 @@ export default function MyOrdersPage() {
                     variant="ghost"
                   />
                 </div>
+
+                {/* KELOLA INFO & QR KEYCHAIN */}
+                <KeychainQrPanel orderId={order.order_id} mode="owner" />
 
                 {/* FOTO HASIL JADI DARI ADMIN (JIKA SUDAH DIUPLOAD) */}
                 {order.result_image && (

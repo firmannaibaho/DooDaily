@@ -192,6 +192,7 @@ function CheckoutForm({
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState("qris");
+  const [qrMode, setQrMode] = useState<"none" | "per_unit" | "per_order">("none");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   /** order_id pesanan yang baru dibuat; dipakai di step 3 (unggah bukti). */
@@ -200,7 +201,12 @@ function CheckoutForm({
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [proofPreview, setProofPreview] = useState("");
   const [proofUploading, setProofUploading] = useState(false);
-  const { items, subtotal, clearCart } = useCart();
+  const { items, clearCart } = useCart();
+
+  const useQr = qrMode !== "none";
+  const pricedItems = useQr
+    ? items.map((item) => ({ ...item, price: Math.max(item.price, 15000) }))
+    : items;
 
   /**
    * Nilai awal form.
@@ -231,6 +237,7 @@ function CheckoutForm({
    * terpisah lewat chat admin, jadi `total === subtotal` dan `shipping` selalu
    * 0. Kolom `shipping` tetap dikirim agar skema database tidak berubah.
    */
+  const subtotal = pricedItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const shipping = 0;
   const total = subtotal;
 
@@ -297,10 +304,11 @@ function CheckoutForm({
           city: form.city.trim(),
           notes: form.notes.trim(),
           payment_method: paymentMethod,
-          items_json: JSON.stringify(items),
+          items_json: JSON.stringify(pricedItems),
           subtotal,
           shipping,
           total,
+          qr_mode: qrMode,
         }),
       });
 
@@ -366,7 +374,7 @@ function CheckoutForm({
           ? "Transfer Bank"
           : "COD (Bayar di Tempat)";
 
-    const itemLines = items
+    const itemLines = pricedItems
       .map(
         (item) =>
           `• ${item.name}${item.customizations.length ? ` (${item.customizations.join(", ")})` : ""} x${item.quantity} = Rp ${(item.price * item.quantity).toLocaleString("id-ID")}`
@@ -726,6 +734,59 @@ function CheckoutForm({
                 />
               </div>
 
+              <div>
+                <label className="text-sm font-bold text-foreground/70 mb-2 block">
+                  Kode QR di Belakang Keychain (Opsional)
+                </label>
+                <div className="grid sm:grid-cols-3 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setQrMode("none")}
+                    className={cn(
+                      "p-3.5 rounded-xl border-2 text-left transition-all",
+                      qrMode === "none"
+                        ? "border-brand-blue bg-brand-blue-light/30"
+                        : "border-gray-200 hover:border-brand-blue/50"
+                    )}
+                  >
+                    <p className="text-sm font-bold text-foreground">Tanpa QR</p>
+                    <p className="text-xs text-foreground/60 mt-0.5">
+                      Harga normal (Rp 10.000/item).
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQrMode("per_unit")}
+                    className={cn(
+                      "p-3.5 rounded-xl border-2 text-left transition-all",
+                      qrMode === "per_unit"
+                        ? "border-brand-blue bg-brand-blue-light/30"
+                        : "border-gray-200 hover:border-brand-blue/50"
+                    )}
+                  >
+                    <p className="text-sm font-bold text-foreground">1 QR per Unit</p>
+                    <p className="text-xs text-foreground/60 mt-0.5">
+                      Tiap keychain punya QR sendiri (Rp 15.000/item).
+                    </p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQrMode("per_order")}
+                    className={cn(
+                      "p-3.5 rounded-xl border-2 text-left transition-all",
+                      qrMode === "per_order"
+                        ? "border-brand-blue bg-brand-blue-light/30"
+                        : "border-gray-200 hover:border-brand-blue/50"
+                    )}
+                  >
+                    <p className="text-sm font-bold text-foreground">1 QR per Pesanan</p>
+                    <p className="text-xs text-foreground/60 mt-0.5">
+                      Semua item pakai 1 halaman QR (Rp 15.000/item).
+                    </p>
+                  </button>
+                </div>
+              </div>
+
               <div className="pt-4 flex justify-end">
                 <Button type="submit" className="rounded-full px-8 h-12 gap-2">
                   Lanjut ke Pembayaran <ChevronRight className="w-4 h-4" />
@@ -1065,7 +1126,7 @@ function CheckoutForm({
         </h3>
 
         <div className="space-y-4 mb-6">
-          {items.map((item) => (
+          {pricedItems.map((item) => (
             <div
               key={item.productId}
               className="flex items-center gap-4 pb-4 border-b border-gray-200"

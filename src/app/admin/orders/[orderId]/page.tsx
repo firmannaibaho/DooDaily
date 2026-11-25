@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AdminOrderChatButton } from "@/components/chat/AdminOrderChatButton";
+import { KeychainQrPanel } from "@/components/keychain/KeychainQrPanel";
 
 interface OrderItem {
   productId?: number;
@@ -295,6 +296,9 @@ export default function AdminOrderDetailPage() {
           </ul>
         )}
       </div>
+
+      {/* Kode QR Keychain untuk dicetak */}
+      <KeychainQrPanel orderId={order.order_id} mode="admin" />
 
       {/* Aksi */}
       <div className="bg-white rounded-3xl border-2 border-brand-blue-light p-6 md:p-8 shadow-sm">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { orderQueries } from "@/lib/db";
+import { keychainQueries, orderQueries } from "@/lib/db";
+import type { QrMode } from "@/lib/keychain-types";
 
 function generateOrderId() {
   const ts = Date.now().toString(36).toUpperCase();
@@ -69,7 +70,11 @@ export async function POST(request: Request) {
     subtotal,
     shipping,
     total,
+    qr_mode,
   } = data;
+
+  const qrMode: QrMode =
+    qr_mode === "per_unit" || qr_mode === "per_order" ? qr_mode : "none";
 
   if (!customer_name || !email || !phone || !address || !city || !payment_method || !items_json) {
     return NextResponse.json({ message: "Missing fields" }, { status: 400 });
@@ -91,6 +96,7 @@ export async function POST(request: Request) {
 
 
   try {
+    const itemsStr = typeof items_json === "string" ? items_json : JSON.stringify(items_json);
     await orderQueries.create(
       order_id,
       user_id,
@@ -101,11 +107,19 @@ export async function POST(request: Request) {
       city,
       notes ?? "",
       payment_method,
-      typeof items_json === "string" ? items_json : JSON.stringify(items_json),
+      itemsStr,
       Number(subtotal),
       Number(shipping),
       Number(total)
     );
+    // Buat tag QR hanya jika pembeli memilih opsi pakai QR.
+    if (qrMode !== "none") {
+      try {
+        await keychainQueries.createTagsForOrder(order_id, user_id, itemsStr, qrMode);
+      } catch (qrErr) {
+        console.error("Create keychain QR tags error:", qrErr);
+      }
+    }
     return NextResponse.json({ order_id }, { status: 201 });
   } catch (error) {
     console.error("Create order error:", error);

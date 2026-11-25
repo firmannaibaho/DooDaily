@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Instagram, Facebook, Twitter } from "@/components/stickers/SocialIcons";
+import { Instagram, Facebook, Twitter, TikTok } from "@/components/stickers/SocialIcons";
 import { SOCIAL_LINKS } from "@/lib/social";
 
 export function Footer() {
@@ -55,10 +55,10 @@ export function Footer() {
                 href={SOCIAL_LINKS.tiktok.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="p-2 bg-brand-blue-light text-brand-blue rounded-full hover:bg-brand-blue hover:text-white transition-colors flex items-center justify-center font-bold text-xs"
+                className="p-2 bg-brand-blue-light text-brand-blue rounded-full hover:bg-brand-blue hover:text-white transition-colors"
                 aria-label="TikTok"
               >
-                TT
+                <TikTok className="w-5 h-5" />
               </a>
             </div>
           </div>
