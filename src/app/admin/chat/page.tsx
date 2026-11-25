@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Lock, LockOpen, RefreshCw } from "lucide-react";
+import { ArrowLeft, Bot, Lock, LockOpen, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { CHAT_KIND_META, type AdminThreadSummary } from "@/lib/chat-types";
@@ -57,6 +57,7 @@ function AdminChatContent() {
     selectThread,
     send,
     setStatus,
+    setBotPaused,
     reloadThreads,
   } = useAdminChat();
 
@@ -314,6 +315,25 @@ function AdminChatContent() {
                     {thread.status === "open" ? "Terbuka" : "Ditutup"}
                   </p>
                 </div>
+                <Button
+                  variant={thread.bot_paused ? "outline" : "ghost"}
+                  size="sm"
+                  className={cn(
+                    "gap-1.5 shrink-0",
+                    thread.bot_paused
+                      ? "border-brand-blue text-brand-blue hover:bg-brand-blue-light"
+                      : "text-emerald-700 hover:bg-emerald-50"
+                  )}
+                  onClick={() => void setBotPaused(!thread.bot_paused)}
+                  title={
+                    thread.bot_paused
+                      ? "Bot sedang dijeda — klik untuk suruh bot membalas lagi"
+                      : "Bot aktif — klik untuk menjeda bot"
+                  }
+                >
+                  <Bot className="w-3.5 h-3.5" />
+                  {thread.bot_paused ? "Aktifkan Bot" : "Bot Aktif"}
+                </Button>
                 <Button
                   variant="ghost"
                   size="sm"

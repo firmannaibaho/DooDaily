@@ -58,6 +58,8 @@ export const POST = withErrorHandling(async (request: Request, context: Context)
   }
 
   const message = await chatQueries.sendMessage(threadId, userIdOf(admin), "admin", body);
+  // Admin membalas manual → bot otomatis mundur sampai admin menyalakannya lagi.
+  await chatQueries.setBotPaused(threadId, true);
 
   return NextResponse.json({ message }, { status: 201 });
 });
@@ -74,6 +76,7 @@ export const PATCH = withErrorHandling(async (request: Request, context: Context
   const payload = (await request.json().catch(() => null)) as {
     read?: unknown;
     status?: unknown;
+    bot_paused?: unknown;
   } | null;
 
   if (payload?.read === true) {
@@ -82,6 +85,10 @@ export const PATCH = withErrorHandling(async (request: Request, context: Context
 
   if (payload?.status === "open" || payload?.status === "closed") {
     await chatQueries.setThreadStatus(threadId, payload.status);
+  }
+
+  if (typeof payload?.bot_paused === "boolean") {
+    await chatQueries.setBotPaused(threadId, payload.bot_paused);
   }
 
   return NextResponse.json({ ok: true });

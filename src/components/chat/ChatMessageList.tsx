@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import type { ChatMessage } from "@/lib/chat-types";
+import { BOT_DISPLAY_NAME, type ChatMessage } from "@/lib/chat-types";
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -13,6 +13,19 @@ interface ChatMessageListProps {
   /** Tinggi area daftar pesan. */
   className?: string;
   loading?: boolean;
+}
+
+/** Render teks polos dengan dukungan ringan **tebal** tanpa HTML mentah. */
+function renderMessageBody(text: string): React.ReactNode {
+  return text.split(/(\*\*[^*\n]+\*\*)/g).map((part, idx) =>
+    part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
+      <strong key={idx} className="font-bold">
+        {part.slice(2, -2)}
+      </strong>
+    ) : (
+      part
+    )
+  );
 }
 
 /** Format jam singkat, mis. 14:05. */
@@ -59,6 +72,7 @@ export function ChatMessageList({
     <div className={cn("flex flex-col gap-2.5 overflow-y-auto px-1 py-3", className)}>
       {messages.map((message) => {
         const isOwn = message.sender_role === ownRole;
+        const isBot = message.sender_role === "bot";
 
         return (
           <div
@@ -70,10 +84,17 @@ export function ChatMessageList({
                 "max-w-[85%] rounded-2xl px-3.5 py-2 border",
                 isOwn
                   ? "bg-brand-blue text-white border-brand-blue rounded-br-md"
-                  : "bg-white text-foreground border-line rounded-bl-md"
+                  : isBot
+                    ? "bg-brand-blue-light text-foreground border-brand-blue/30 rounded-bl-md"
+                    : "bg-white text-foreground border-line rounded-bl-md"
               )}
             >
-              <p className="text-sm font-medium whitespace-pre-wrap break-words">{message.body}</p>
+              {isBot && (
+                <p className="mb-0.5 text-[10px] font-bold text-brand-blue">{BOT_DISPLAY_NAME}</p>
+              )}
+              <p className="text-sm font-medium whitespace-pre-wrap break-words">
+                {renderMessageBody(message.body)}
+              </p>
               <p
                 className={cn(
                   "mt-1 text-[10px] font-bold text-right",

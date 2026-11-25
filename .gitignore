@@ -85,3 +85,14 @@ patch.diff
 *.log
 retry-test-result.txt
 
+# konfigurasi AI agent & IDE lokal (tidak ikut repo)
+AGENTS.md
+CLAUDE.md
+.clinerules/
+.claude/
+.cursor/
+.agents/
+.agent/
+.vscode/
+.idea/
+

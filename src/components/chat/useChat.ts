@@ -149,7 +149,7 @@ export function useChat(): UseChatResult {
         });
 
         const data = (await res.json().catch(() => null)) as
-          | { message?: ChatMessage | string }
+          | { message?: ChatMessage | string; bot_message?: ChatMessage | null }
           | null;
 
         if (!res.ok) {
@@ -159,9 +159,12 @@ export function useChat(): UseChatResult {
           return;
         }
 
-        if (data?.message && typeof data.message === "object") {
-          applyMessages([data.message]);
+        const incoming: ChatMessage[] = [];
+        if (data?.message && typeof data.message === "object") incoming.push(data.message);
+        if (data?.bot_message && typeof data.bot_message === "object") {
+          incoming.push(data.bot_message);
         }
+        applyMessages(incoming);
       } catch {
         setError("Tidak dapat mengirim pesan.");
       } finally {

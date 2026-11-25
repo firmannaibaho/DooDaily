@@ -18,6 +18,7 @@ import {
 import { assertThreadAccess, parseThreadId } from "@/lib/chat-access";
 import { checkChatRateLimit } from "@/lib/chat-rate-limit";
 import { chatQueries } from "@/lib/db";
+import { maybeAnswer } from "@/lib/chatbot";
 import { sanitizeChatBody } from "@/lib/chat-types";
 
 type Context = { params: Promise<{ threadId: string }> };
@@ -61,7 +62,10 @@ export const POST = withErrorHandling(async (request: Request, context: Context)
 
   const message = await chatQueries.sendMessage(thread.id, userIdOf(user), "user", body);
 
-  return NextResponse.json({ message }, { status: 201 });
+  // Balasan bot best-effort: kegagalan provider tidak boleh menggagalkan pesan user.
+  const botMessage = await maybeAnswer(thread, user, body);
+
+  return NextResponse.json({ message, bot_message: botMessage }, { status: 201 });
 });
 
 export const PATCH = withErrorHandling(async (_request: Request, context: Context) => {

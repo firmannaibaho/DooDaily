@@ -22,6 +22,7 @@ interface UseAdminChatResult {
   selectThread: (threadId: number) => Promise<void>;
   send: (body: string) => Promise<void>;
   setStatus: (status: "open" | "closed") => Promise<void>;
+  setBotPaused: (paused: boolean) => Promise<void>;
   reloadThreads: () => Promise<void>;
 }
 
@@ -175,6 +176,7 @@ export function useAdminChat(): UseAdminChatResult {
 
         if (data?.message && typeof data.message === "object") {
           applyMessages([data.message]);
+          setThread((prev) => (prev ? { ...prev, bot_paused: true } : prev));
           await reloadThreads();
         }
       } catch {
@@ -205,6 +207,27 @@ export function useAdminChat(): UseAdminChatResult {
     [reloadThreads]
   );
 
+  /** Aktifkan atau jeda Bot Doodaily di percakapan aktif. */
+  const setBotPaused = useCallback(async (paused: boolean) => {
+    const threadId = threadIdRef.current;
+    if (threadId === null) return;
+
+    try {
+      const res = await fetch(`/api/chat/admin/threads/${threadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bot_paused: paused }),
+      });
+      if (!res.ok) {
+        setError("Gagal mengubah status bot.");
+        return;
+      }
+      setThread((prev) => (prev ? { ...prev, bot_paused: paused } : prev));
+    } catch {
+      setError("Gagal mengubah status bot.");
+    }
+  }, []);
+
   return {
     threads,
     thread,
@@ -217,6 +240,7 @@ export function useAdminChat(): UseAdminChatResult {
     selectThread,
     send,
     setStatus,
+    setBotPaused,
     reloadThreads,
   };
 }

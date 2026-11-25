@@ -7,7 +7,7 @@ import type {
   AdminThreadSummary,
   ChatKind,
 } from "./chat-types";
-import { buildPreview } from "./chat-types";
+import { buildPreview, STAFF_ROLES } from "./chat-types";
 
 export interface DbUser {
   id: number;
@@ -510,6 +510,18 @@ export const chatQueries = {
     }
   },
 
+  /** Atur apakah bot dijeda di thread ini (true = admin mengambil alih, false = bot aktif). */
+  setBotPaused: async (threadId: number, paused: boolean): Promise<void> => {
+    const { error } = await requireClient()
+      .from("chat_threads")
+      .update({ bot_paused: paused })
+      .eq("id", threadId);
+
+    if (error) {
+      console.error("chatQueries.setBotPaused error:", error);
+    }
+  },
+
   /* ── Pesan ───────────────────────────────────────────────────── */
 
   /**
@@ -547,7 +559,7 @@ export const chatQueries = {
    */
   sendMessage: async (
     threadId: number,
-    senderId: number,
+    senderId: number | null,
     senderRole: ChatSenderRole,
     body: string
   ): Promise<ChatMessage> => {
@@ -569,15 +581,13 @@ export const chatQueries = {
     // saling menimpa nilai counter.
     //
     // CATATAN: yang dihitung adalah pesan dari LAWAN BICARA yang belum dibaca
-    // oleh PENERIMA. Saat user mengirim → pesan user belum dibaca admin
-    // (sender_role = "user"). Saat admin mengirim → pesan admin belum dibaca
-    // user (sender_role = "admin"). Jadi filternya memakai `senderRole`
-    // (pengirim pesan ini), BUKAN role penerima.
+    // oleh PENERIMA. Saat user mengirim → pesan user belum dibaca admin.
+    // Saat admin/bot mengirim → pesan sisi toko belum dibaca user.
     const unread = await client
       .from("chat_messages")
       .select("id")
       .eq("thread_id", threadId)
-      .eq("sender_role", senderRole)
+      .in("sender_role", senderRole === "user" ? ["user"] : STAFF_ROLES)
       .filter("read_at", "is", null);
 
     if (unread.error) {
@@ -610,7 +620,7 @@ export const chatQueries = {
   /** Tandai pesan lawan bicara sudah dibaca & reset counter. */
   markRead: async (threadId: number, readerRole: ChatSenderRole): Promise<void> => {
     const client = requireClient();
-    const otherRole: ChatSenderRole = readerRole === "admin" ? "user" : "admin";
+    const otherRoles: ChatSenderRole[] = readerRole === "user" ? STAFF_ROLES : ["user"];
 
     // Sama seperti di sendMessage: pakai `.filter("...", "is", null)` karena
     // `.is()` pada client ini tidak menyaring baris dengan benar.
@@ -618,7 +628,7 @@ export const chatQueries = {
       .from("chat_messages")
       .update({ read_at: new Date().toISOString() })
       .eq("thread_id", threadId)
-      .eq("sender_role", otherRole)
+      .in("sender_role", otherRoles)
       .filter("read_at", "is", null);
 
     if (messages.error) {

@@ -12,7 +12,13 @@
 
 export type ChatKind = "general" | "cart" | "order";
 
-export type ChatSenderRole = "user" | "admin";
+export type ChatSenderRole = "user" | "admin" | "bot";
+
+/** Role yang dianggap "sisi Doodaily" (bukan pembeli). */
+export const STAFF_ROLES: ChatSenderRole[] = ["admin", "bot"];
+
+/** Label tampilan bot di bubble chat. */
+export const BOT_DISPLAY_NAME = "Bot Doodaily";
 
 export type ChatThreadStatus = "open" | "closed";
 
@@ -28,6 +34,7 @@ export interface ChatThread {
   unread_for_admin: number;
   unread_for_user: number;
   status: ChatThreadStatus;
+  bot_paused?: boolean;
   created_at: string;
 }
 
